@@ -45,7 +45,7 @@
    </Border>
   </UniformGrid>
   <Border Background="#251C36" CornerRadius="18" Padding="18" Margin="4,10">
-   <StackPanel><TextBlock Text="🌸 CONNECTION SETTINGS" FontSize="17" FontWeight="Bold" Foreground="#FF8FD8"/><TextBlock Text="Konfiguration über lokalen Port (127.0.0.1), kein Prozess-Injektor." Margin="0,10,0,0" Foreground="#D6BDDF"/><Button Content="Apply Settings" Click="Apply" Background="#A63BC2" Width="200" HorizontalAlignment="Left" Margin="0,15,0,0"/></StackPanel>
+   <StackPanel><TextBlock Text="🚀 FAST PLACE" FontSize="17" FontWeight="Bold" Foreground="#FF8FD8"/><CheckBox x:Name="FastPlaceEnabled" Content="Enable FastPlace"/><CheckBox x:Name="ExcludeAnchors" IsChecked="True" Content="Exclude anchors and glowstone"/><WrapPanel><TextBlock Text="Place delay (0–4)" VerticalAlignment="Center" Width="145"/><TextBox x:Name="PlaceDelay" Text="0"/></WrapPanel><TextBlock Text="🌸 CONNECTION SETTINGS" FontSize="17" FontWeight="Bold" Foreground="#FF8FD8"/><TextBlock Text="Konfiguration über lokalen Port (127.0.0.1), kein Prozess-Injektor." Margin="0,10,0,0" Foreground="#D6BDDF"/><Button Content="Apply Settings" Click="Apply" Background="#A63BC2" Width="200" HorizontalAlignment="Left" Margin="0,15,0,0"/></StackPanel>
   </Border>
  </StackPanel>
  </ScrollViewer>
