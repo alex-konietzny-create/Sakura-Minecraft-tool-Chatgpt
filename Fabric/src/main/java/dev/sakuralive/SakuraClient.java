@@ -1,91 +1,99 @@
 package dev.sakuralive;
+
+import dev.sakuralive.mixin.ClientCooldownAccessor;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.util.Identifier;
 import net.minecraft.client.util.InputUtil;
-import net.minecraft.item.Items;
 import net.minecraft.item.BlockItem;
-import net.minecraft.block.Blocks;
-import net.minecraft.util.hit.HitResult;
-import dev.sakuralive.mixin.ClientCooldownAccessor;
+import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
 import org.lwjgl.glfw.GLFW;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.InetAddress;
-import java.nio.file.*;
-import java.nio.charset.StandardCharsets;
-import com.sun.net.httpserver.HttpServer;
-import java.util.concurrent.Executors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+/** Self-contained Fabric mod: no desktop application or IPC needed. */
 public final class SakuraClient implements ClientModInitializer {
- private static volatile Config cfg=new Config(false,false,false,true,1,2,9,3,3,0);
- private static KeyBinding anchorKey,crystalKey;
- private static int step=0,timer=0,crystalTimer=0;
- private record Config(boolean anchor,boolean crystal,boolean fastPlace,boolean excludeAnchors,int anchorSlot,int glowSlot,int totemSlot,int crystalSlot,int delay,int placeDelay) {}
+ public static final SakuraSettings settings=SakuraSettings.load();
+ private static KeyBinding anchorKey, crystalKey, menuKey;
+ private static int anchorPhase, waitTicks, crystalWait;
+ private static BlockHitResult anchorTarget;
+
  @Override public void onInitializeClient() {
-  anchorKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.anchor",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_G,KeyBinding.Category.create(Identifier.of("sakuralive","main"))));
-  crystalKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.crystal",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_H,KeyBinding.Category.create(Identifier.of("sakuralive","main"))));
+  var group=KeyBinding.Category.create(Identifier.of("sakuralive","main"));
+  anchorKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.anchor",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_G,group));
+  crystalKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.crystal",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_H,group));
+  menuKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.menu",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_RIGHT_SHIFT,group));
   ClientTickEvents.END_CLIENT_TICK.register(this::tick);
-  startIpc();
  }
  private void tick(MinecraftClient mc) {
-  if(mc.player==null || mc.world==null || mc.interactionManager==null){step=0;return;}
-  if(timer>0)timer--;if(crystalTimer>0)crystalTimer--;
-  applyFastPlace(mc);
-  while(anchorKey.wasPressed())if(cfg.anchor && step==0){step=1;timer=0;}
-  if(step!=0 && timer==0) {
-   int slot=step==1?cfg.anchorSlot:step==2?cfg.glowSlot:cfg.totemSlot;
-   if(slot<1||slot>9||!(mc.crosshairTarget instanceof BlockHitResult hit)){step=0;return;}
-   var inv=mc.player.getInventory();
-   if(step==1&&!inv.getStack(slot-1).isOf(Items.RESPAWN_ANCHOR) || step==2&&!inv.getStack(slot-1).isOf(Items.GLOWSTONE) || step==3 && (inv.getStack(slot-1).isOf(Items.GLOWSTONE)||inv.getStack(slot-1).isOf(Items.RESPAWN_ANCHOR))){step=0;return;}
-   if(step>=2 && !mc.world.getBlockState(hit.getBlockPos()).isOf(Blocks.RESPAWN_ANCHOR)){step=0;return;}
-   inv.setSelectedSlot(slot-1);
-   mc.interactionManager.interactBlock(mc.player,Hand.MAIN_HAND,hit);
-   mc.player.swingHand(Hand.MAIN_HAND);
-   if(++step>3){step=0;inv.setSelectedSlot(cfg.totemSlot-1);} else timer=cfg.delay;
+  while(menuKey.wasPressed())mc.setScreen(new SakuraScreen());
+  if(mc.player==null||mc.world==null||mc.interactionManager==null){anchorPhase=0;return;}
+  if(mc.currentScreen!=null){anchorPhase=0;return;}
+  if(waitTicks>0)waitTicks--;
+  if(crystalWait>0)crystalWait--;
+  fastPlace(mc);
+  while(anchorKey.wasPressed()){
+   if(settings.anchor && anchorPhase==0 && mc.crosshairTarget instanceof BlockHitResult hit) {
+    anchorPhase=1;anchorTarget=hit;waitTicks=0;
+   }
   }
-  while(crystalKey.wasPressed())if(cfg.crystal && crystalTimer==0 && mc.crosshairTarget instanceof BlockHitResult hit) {
-   var inv=mc.player.getInventory(); int slot=cfg.crystalSlot-1;
-   if(inv.getStack(slot).isOf(Items.END_CRYSTAL)) {
-    inv.setSelectedSlot(slot); mc.interactionManager.interactBlock(mc.player,Hand.MAIN_HAND,hit);
-    mc.player.swingHand(Hand.MAIN_HAND);crystalTimer=cfg.delay;
+  if(anchorPhase!=0&&waitTicks==0)performAnchor(mc);
+  while(crystalKey.wasPressed()){
+   if(settings.crystal && crystalWait==0 && mc.crosshairTarget instanceof BlockHitResult hit) {
+    var inventory=mc.player.getInventory();
+    int slot=settings.crystalSlot-1;
+    if(inventory.getStack(slot).isOf(Items.END_CRYSTAL)){
+     inventory.setSelectedSlot(slot);
+     mc.interactionManager.interactBlock(mc.player,Hand.MAIN_HAND,hit);
+     mc.player.swingHand(Hand.MAIN_HAND);
+     crystalWait=settings.actionDelay;
+    }
    }
   }
  }
- private void applyFastPlace(MinecraftClient mc) {
-  if(!cfg.fastPlace || mc.currentScreen!=null || !mc.options.useKey.isPressed())return;
-  var stack=mc.player.getMainHandStack();
-  if(!(stack.getItem() instanceof BlockItem) && !(mc.player.getOffHandStack().getItem() instanceof BlockItem))return;
-  if(cfg.excludeAnchors && (stack.isOf(Items.RESPAWN_ANCHOR)||stack.isOf(Items.GLOWSTONE)))return;
-  var accessor=(ClientCooldownAccessor)mc;
-  if(accessor.sakura$getItemUseCooldown()>cfg.placeDelay)accessor.sakura$setItemUseCooldown(cfg.placeDelay);
+ private void performAnchor(MinecraftClient mc){
+  // Phase 1 place anchor; phase 2 glowstone; phase 3 detonate with non-glowstone item.
+  var inventory=mc.player.getInventory();
+  int slot=anchorPhase==1?settings.anchorSlot-1:
+           anchorPhase==2?settings.glowSlot-1:settings.totemSlot-1;
+  if(slot<0||slot>8||anchorTarget==null){anchorPhase=0;return;}
+  if(anchorPhase==1 && !inventory.getStack(slot).isOf(Items.RESPAWN_ANCHOR)
+    || anchorPhase==2 && !inventory.getStack(slot).isOf(Items.GLOWSTONE)
+    || anchorPhase==3 && (inventory.getStack(slot).isOf(Items.GLOWSTONE)
+                          || inventory.getStack(slot).isOf(Items.RESPAWN_ANCHOR))){
+   anchorPhase=0;return;
+  }
+  BlockHitResult target=anchorTarget;
+  if(anchorPhase>=2){
+   // The position clicked in phase 1 is an adjacent support block.
+   // Reacquire the new anchor from the crosshair instead of reusing that click.
+   if(!(mc.crosshairTarget instanceof BlockHitResult current)
+     || !mc.world.getBlockState(current.getBlockPos()).isOf(Blocks.RESPAWN_ANCHOR)){
+    anchorPhase=0;return;
+   }
+   target=current;
+  }
+  inventory.setSelectedSlot(slot);
+  mc.interactionManager.interactBlock(mc.player,Hand.MAIN_HAND,target);
+  mc.player.swingHand(Hand.MAIN_HAND);
+  if(anchorPhase==3){anchorPhase=0;inventory.setSelectedSlot(settings.totemSlot-1);}
+  else {anchorPhase++;waitTicks=settings.actionDelay;}
  }
- private void startIpc(){
-  try{
-   HttpServer srv=HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(),0),0);
-   long pid=ProcessHandle.current().pid();
-   srv.createContext("/hello",e->{byte[] data=("SAKURA:"+pid).getBytes(StandardCharsets.UTF_8);e.sendResponseHeaders(200,data.length);try(var out=e.getResponseBody()){out.write(data);}});
-   srv.createContext("/config",e->{
-    if(!"POST".equals(e.getRequestMethod())){e.sendResponseHeaders(405,-1);e.close();return;}
-    String json=new String(e.getRequestBody().readNBytes(4096),StandardCharsets.UTF_8);
-    cfg=new Config(bool(json,"anchor"),bool(json,"crystal"),bool(json,"fastPlace"),bool(json,"excludeAnchors"),num(json,"anchorSlot",1,1,9),num(json,"glowSlot",2,1,9),num(json,"totemSlot",9,1,9),num(json,"crystalSlot",3,1,9),num(json,"delay",3,1,20),num(json,"placeDelay",0,0,4));
-    byte[] ok="OK".getBytes(StandardCharsets.UTF_8);e.sendResponseHeaders(200,ok.length);try(var out=e.getResponseBody()){out.write(ok);}
-   });
-   srv.setExecutor(Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"Sakura IPC");t.setDaemon(true);return t;}));srv.start();
-   Path dir=Path.of(System.getProperty("java.io.tmpdir"),"SakuraLive");Files.createDirectories(dir);
-   Path file=dir.resolve(pid+".port");Files.writeString(file,Integer.toString(srv.getAddress().getPort()));
-   Runtime.getRuntime().addShutdownHook(new Thread(()->{try{Files.deleteIfExists(file);}catch(IOException ignored){}}));
-  }catch(IOException ex){System.err.println("[Sakura] IPC error: "+ex);}
- }
- private static boolean bool(String s,String k){return Pattern.compile("\\\""+k+"\\\"\\s*:\\s*true").matcher(s).find();}
- private static int num(String s,String k,int fallback,int lo,int hi){
-  Matcher m=Pattern.compile("\\\""+k+"\\\"\\s*:\\s*(\\d+)").matcher(s);
-  if(!m.find())return fallback;try{return Math.max(lo,Math.min(hi,Integer.parseInt(m.group(1))));}catch(NumberFormatException ex){return fallback;}
+ private void fastPlace(MinecraftClient mc){
+  if(!settings.fastPlace||!mc.options.useKey.isPressed())return;
+  var main=mc.player.getMainHandStack();
+  var off=mc.player.getOffHandStack();
+  boolean mainBlock=main.getItem() instanceof BlockItem;
+  boolean offBlock=off.getItem() instanceof BlockItem;
+  if(!mainBlock&&!offBlock)return;
+  if(settings.excludeAnchors && ((mainBlock&&(main.isOf(Items.RESPAWN_ANCHOR)||main.isOf(Items.GLOWSTONE)))
+          ||(!mainBlock&&(off.isOf(Items.RESPAWN_ANCHOR)||off.isOf(Items.GLOWSTONE)))))return;
+  ClientCooldownAccessor cooldown=(ClientCooldownAccessor)mc;
+  if(cooldown.sakura$getItemUseCooldown()>settings.placeDelay)
+   cooldown.sakura$setItemUseCooldown(settings.placeDelay);
  }
 }
