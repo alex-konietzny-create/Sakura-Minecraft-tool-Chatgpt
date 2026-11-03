@@ -7,6 +7,10 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.Items;
+import net.minecraft.item.BlockItem;
+import net.minecraft.block.Blocks;
+import net.minecraft.util.hit.HitResult;
+import dev.sakuralive.mixin.ClientCooldownAccessor;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import org.lwjgl.glfw.GLFW;
@@ -20,10 +24,10 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 public final class SakuraClient implements ClientModInitializer {
- private static volatile Config cfg=new Config(false,false,1,2,9,3,3);
+ private static volatile Config cfg=new Config(false,false,false,true,1,2,9,3,3,0);
  private static KeyBinding anchorKey,crystalKey;
  private static int step=0,timer=0,crystalTimer=0;
- private record Config(boolean anchor,boolean crystal,int anchorSlot,int glowSlot,int totemSlot,int crystalSlot,int delay) {}
+ private record Config(boolean anchor,boolean crystal,boolean fastPlace,boolean excludeAnchors,int anchorSlot,int glowSlot,int totemSlot,int crystalSlot,int delay,int placeDelay) {}
  @Override public void onInitializeClient() {
   anchorKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.anchor",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_G,KeyBinding.Category.create(Identifier.of("sakuralive","main"))));
   crystalKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.crystal",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_H,KeyBinding.Category.create(Identifier.of("sakuralive","main"))));
@@ -33,12 +37,14 @@ public final class SakuraClient implements ClientModInitializer {
  private void tick(MinecraftClient mc) {
   if(mc.player==null || mc.world==null || mc.interactionManager==null){step=0;return;}
   if(timer>0)timer--;if(crystalTimer>0)crystalTimer--;
+  applyFastPlace(mc);
   while(anchorKey.wasPressed())if(cfg.anchor && step==0){step=1;timer=0;}
   if(step!=0 && timer==0) {
-   int slot=step==2?cfg.glowSlot:cfg.anchorSlot;
+   int slot=step==1?cfg.anchorSlot:step==2?cfg.glowSlot:cfg.totemSlot;
    if(slot<1||slot>9||!(mc.crosshairTarget instanceof BlockHitResult hit)){step=0;return;}
    var inv=mc.player.getInventory();
-   if(step==1&&!inv.getStack(slot-1).isOf(Items.RESPAWN_ANCHOR) || step==2&&!inv.getStack(slot-1).isOf(Items.GLOWSTONE)){step=0;return;}
+   if(step==1&&!inv.getStack(slot-1).isOf(Items.RESPAWN_ANCHOR) || step==2&&!inv.getStack(slot-1).isOf(Items.GLOWSTONE) || step==3 && (inv.getStack(slot-1).isOf(Items.GLOWSTONE)||inv.getStack(slot-1).isOf(Items.RESPAWN_ANCHOR))){step=0;return;}
+   if(step>=2 && !mc.world.getBlockState(hit.getBlockPos()).isOf(Blocks.RESPAWN_ANCHOR)){step=0;return;}
    inv.setSelectedSlot(slot-1);
    mc.interactionManager.interactBlock(mc.player,Hand.MAIN_HAND,hit);
    mc.player.swingHand(Hand.MAIN_HAND);
@@ -52,6 +58,14 @@ public final class SakuraClient implements ClientModInitializer {
    }
   }
  }
+ private void applyFastPlace(MinecraftClient mc) {
+  if(!cfg.fastPlace || mc.currentScreen!=null || !mc.options.useKey.isPressed())return;
+  var stack=mc.player.getMainHandStack();
+  if(!(stack.getItem() instanceof BlockItem) && !(mc.player.getOffHandStack().getItem() instanceof BlockItem))return;
+  if(cfg.excludeAnchors && (stack.isOf(Items.RESPAWN_ANCHOR)||stack.isOf(Items.GLOWSTONE)))return;
+  var accessor=(ClientCooldownAccessor)mc;
+  if(accessor.sakura$getItemUseCooldown()>cfg.placeDelay)accessor.sakura$setItemUseCooldown(cfg.placeDelay);
+ }
  private void startIpc(){
   try{
    HttpServer srv=HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(),0),0);
@@ -60,7 +74,7 @@ public final class SakuraClient implements ClientModInitializer {
    srv.createContext("/config",e->{
     if(!"POST".equals(e.getRequestMethod())){e.sendResponseHeaders(405,-1);e.close();return;}
     String json=new String(e.getRequestBody().readNBytes(4096),StandardCharsets.UTF_8);
-    cfg=new Config(bool(json,"anchor"),bool(json,"crystal"),num(json,"anchorSlot",1,1,9),num(json,"glowSlot",2,1,9),num(json,"totemSlot",9,1,9),num(json,"crystalSlot",3,1,9),num(json,"delay",3,1,20));
+    cfg=new Config(bool(json,"anchor"),bool(json,"crystal"),bool(json,"fastPlace"),bool(json,"excludeAnchors"),num(json,"anchorSlot",1,1,9),num(json,"glowSlot",2,1,9),num(json,"totemSlot",9,1,9),num(json,"crystalSlot",3,1,9),num(json,"delay",3,1,20),num(json,"placeDelay",0,0,4));
     byte[] ok="OK".getBytes(StandardCharsets.UTF_8);e.sendResponseHeaders(200,ok.length);try(var out=e.getResponseBody()){out.write(ok);}
    });
    srv.setExecutor(Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"Sakura IPC");t.setDaemon(true);return t;}));srv.start();
