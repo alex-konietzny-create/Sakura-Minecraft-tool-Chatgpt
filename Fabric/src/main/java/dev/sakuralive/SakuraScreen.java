@@ -41,7 +41,7 @@ public final class SakuraScreen extends Screen {
   toggle(left+145,top+263,90,24,()->s.fastPlace,()->s.fastPlace=!s.fastPlace);
   toggle(left+370,top+263,105,24,()->s.excludeAnchors,()->s.excludeAnchors=!s.excludeAnchors);
   field(left+302,top+296,"",()->s.placeDelay,n->s.placeDelay=n,0,4);
-  add(left+548,top+10,34,29,()->"X",()->close());
+  add(left+548,top+10,34,29,()->"X",()->shut());
  }
  private interface Get{int value();}
  private interface Set{void value(int n);}
@@ -57,7 +57,7 @@ public final class SakuraScreen extends Screen {
   addDrawableChild(ButtonWidget.builder(Text.empty(),btn->action.run()).dimensions(Math.round(x*scale),Math.round(y*scale),Math.max(1,Math.round(w*scale)),Math.max(1,Math.round(h*scale))).build());
   pills.add(new Pill(x,y,w,h,label,false));
  }
- private void close(){if(client!=null)client.setScreen(null);}
+ private void shut(){if(client!=null)client.setScreen(null);}
  private void label(DrawContext c,String str,int x,int y,int color){
   c.drawTextWithShadow(textRenderer,Text.literal(str),x,y,color);
  }
