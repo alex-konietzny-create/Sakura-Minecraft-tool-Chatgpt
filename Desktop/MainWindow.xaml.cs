@@ -46,9 +46,9 @@ public partial class MainWindow : Window
  private async void Apply(object sender,RoutedEventArgs e){
   if(connected is null){Status.Text="Connect to Minecraft first";return;}
   try{
-   var settings=new {anchor=AnchorEnabled.IsChecked==true,crystal=CrystalEnabled.IsChecked==true,
+   var settings=new {anchor=AnchorEnabled.IsChecked==true,crystal=CrystalEnabled.IsChecked==true,fastPlace=FastPlaceEnabled.IsChecked==true,excludeAnchors=ExcludeAnchors.IsChecked==true,
     anchorSlot=Value(AnchorSlot,1,9),glowSlot=Value(GlowSlot,1,9),totemSlot=Value(TotemSlot,1,9),
-    crystalSlot=Value(CrystalSlot,1,9),delay=Value(Delay,1,20)};
+    crystalSlot=Value(CrystalSlot,1,9),delay=Value(Delay,1,20),placeDelay=Value(PlaceDelay,0,4)};
    using var body=new StringContent(JsonSerializer.Serialize(settings),Encoding.UTF8,"application/json");
    using var resp=await http.PostAsync($"http://127.0.0.1:{connected.Port}/config",body);
    resp.EnsureSuccessStatusCode();Status.Text="Settings applied ✓";
