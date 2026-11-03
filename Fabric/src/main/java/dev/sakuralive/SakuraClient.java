@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.util.Identifier;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
@@ -24,8 +25,8 @@ public final class SakuraClient implements ClientModInitializer {
  private static int step=0,timer=0,crystalTimer=0;
  private record Config(boolean anchor,boolean crystal,int anchorSlot,int glowSlot,int totemSlot,int crystalSlot,int delay) {}
  @Override public void onInitializeClient() {
-  anchorKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.anchor",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_G,"category.sakuralive"));
-  crystalKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.crystal",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_H,"category.sakuralive"));
+  anchorKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.anchor",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_G,KeyBinding.Category.create(Identifier.of("sakuralive","main"))));
+  crystalKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.crystal",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_H,KeyBinding.Category.create(Identifier.of("sakuralive","main"))));
   ClientTickEvents.END_CLIENT_TICK.register(this::tick);
   startIpc();
  }
