@@ -1,4 +1,4 @@
-name: Build Sakura Live
+name: Build Sakura Pink Fabric Client
 on:
   push:
   workflow_dispatch:
@@ -14,23 +14,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.2.1'
-      - name: Build Fabric
+      - name: Build Fabric 1.21.11
         working-directory: Fabric
         run: gradle clean build --stacktrace --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: SakuraLive-Fabric-1.21.11
-          path: Fabric/build/libs/*.jar
-  desktop:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - name: Publish EXE
-        run: dotnet publish Desktop/SakuraLive.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o Desktop/publish
-      - uses: actions/upload-artifact@v4
-        with:
-          name: SakuraLive-Windows
-          path: Desktop/publish/**
+          name: SakuraLive-Pink-Fabric-1.21.11
+          path: Fabric/build/libs/SakuraLive-Fabric-0.1.0.jar
+          if-no-files-found: error
