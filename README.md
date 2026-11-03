@@ -1,22 +1,26 @@
-# 🌸 Sakura Live Hybrid
+# 🌸 Sakura Live — Pink Fabric Client
 
-Minecraft Java 1.21.11 · Fabric client + Windows 11 app.
+**Minecraft Java 1.21.11 · Fabric Loader · Java 21**
 
-**Status: Early prototype, NOT released or gameplay-tested.** The repository contains real source code and a GitHub Actions build workflow for both components.
+Only a Fabric mod. No desktop EXE or process connector required.
 
-## Components
+## Install
 
-- `Desktop/` – WPF (.NET 8) dark pink/purple GUI with rounded outer window, Minecraft instance selector, local handshake and macro settings.
-- `Fabric/` – Minecraft 1.21.11 Fabric client mod, simple Anchor (G) and Crystal (H) actions, localhost settings API.
-- `.github/workflows/build.yml` – builds both components (where dependencies are available).
+1. Open [GitHub Actions](../../actions/workflows/build.yml) and choose the latest **green** run.
+2. Download artifact **SakuraLive-Pink-Fabric-1.21.11**, unzip it and install `SakuraLive-Fabric-0.1.0.jar` into Minecraft's `mods` folder.
+3. Use **Minecraft 1.21.11**, Fabric Loader and Fabric API.
+4. Press **Right Shift** for the pink, rounded in-game menu; **G** for Anchor and **H** for Crystal.
 
-## Download builds
+## Features
 
-After a successful GitHub Actions run: **Actions → Build Sakura Live → Artifacts**.
+- Pink + near-black native Minecraft interface with rounded corners and clickable pill controls.
+- Responsive layout for smaller GUI sizes (automatic scaling).
+- Enable/disable anchor macro, crystal macro and FastPlace.
+- Choose inventory slots, action delay and FastPlace delay.
+- Save changes to `config/sakura-live.json` automatically.
+- Final slot for Anchor macro (Totem slot).
+- In-game GUI; no external EXE and no network connection.
 
-## Important limitations
+**Important:** The macro logic is an experimental implementation, not a clone of a commercial client. CI compilation confirms code compiles but cannot confirm that every PvP interaction works on a particular server. Test safely in a private practice world.
 
-- The macros are **prototypes**, not the professionally tuned implementation requested.
-- **FastPlace is not yet implemented.**
-- A successful compile does **not** guarantee compatibility with every modpack or server.
-- The desktop app uses loopback networking with the Fabric mod, **not Minecraft memory injection**.
+The repository still contains old unused `Desktop/` sources as historical prototype files, but the workflow builds **only** the Fabric mod.
