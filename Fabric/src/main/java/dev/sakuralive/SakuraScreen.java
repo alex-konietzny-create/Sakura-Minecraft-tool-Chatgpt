@@ -20,14 +20,16 @@ public final class SakuraScreen extends Screen {
  private static final int OFF = 0xFF3C2A32;
  private final List<Pill> pills = new ArrayList<>();
  private int left, top;
+ private float scale = 1f;
  private final SakuraSettings s = SakuraClient.settings;
  private record Pill(int x,int y,int w,int h,Supplier<String> label,boolean active) {}
  public SakuraScreen(){super(Text.literal("Sakura Live"));}
 
  @Override protected void init() {
   pills.clear();
-  left=(width-600)/2;
-  top=(height-350)/2;
+  scale=Math.min(1f,Math.min((width-16)/600f,(height-16)/350f));
+  left=(int)((width/scale-600)/2);
+  top=(int)((height/scale-350)/2);
   // Cards: Anchor, Crystal, FastPlace
   toggle(left+192,top+75,79,24,()->s.anchor,()->s.anchor=!s.anchor);
   toggle(left+493,top+75,79,24,()->s.crystal,()->s.crystal=!s.crystal);
@@ -52,7 +54,7 @@ public final class SakuraScreen extends Screen {
   add(x,y,w,h,()->get.value()?"ON":"OFF",()->{change.run();s.save();});
  }
  private void add(int x,int y,int w,int h,Supplier<String> label,Runnable action){
-  addDrawableChild(ButtonWidget.builder(Text.empty(),btn->action.run()).dimensions(x,y,w,h).build());
+  addDrawableChild(ButtonWidget.builder(Text.empty(),btn->action.run()).dimensions(Math.round(x*scale),Math.round(y*scale),Math.max(1,Math.round(w*scale)),Math.max(1,Math.round(h*scale))).build());
   pills.add(new Pill(x,y,w,h,label,false));
  }
  private void close(){if(client!=null)client.setScreen(null);}
@@ -76,6 +78,8 @@ public final class SakuraScreen extends Screen {
  @Override public void render(DrawContext context,int mouseX,int mouseY,float delta){
   context.fill(0,0,width,height,0xD6000000);
   super.render(context,mouseX,mouseY,delta);
+  context.getMatrices().pushMatrix();
+  context.getMatrices().scale(scale,scale);
   // Draw over the functional vanilla ButtonWidget hitboxes for custom fully rounded pills.
   outline(context,left,top,600,350,20,0xFF6A2E48,BACK);
   rounded(context,left+14,top+13,5,28,3,PINK);
@@ -104,7 +108,7 @@ public final class SakuraScreen extends Screen {
   label(context,Integer.toString(s.actionDelay),left+506,top+159,PINK_LIGHT);
   label(context,Integer.toString(s.placeDelay),left+506,top+303,PINK_LIGHT);
   for(Pill p:pills){
-   boolean hover=mouseX>=p.x&&mouseX<p.x+p.w&&mouseY>=p.y&&mouseY<p.y+p.h;
+   boolean hover=mouseX/scale>=p.x&&mouseX/scale<p.x+p.w&&mouseY/scale>=p.y&&mouseY/scale<p.y+p.h;
    String value=p.label.get();
    int color=value.equals("ON")?(hover?0xFFFF78B0:PINK):(hover?CARD_HOVER:OFF);
    if(value.equals("X"))color=hover?0xFFFF78B0:PINK;
@@ -113,6 +117,7 @@ public final class SakuraScreen extends Screen {
    int txtW=textRenderer.getWidth(value);
    label(context,value,p.x+(p.w-txtW)/2,p.y+(p.h-8)/2,ink);
   }
+  context.getMatrices().popMatrix();
  }
  @Override public boolean shouldPause(){return false;}
 }
