@@ -1,0 +1,55 @@
+<Window x:Class="SakuraLive.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Sakura Live Hybrid" Width="980" Height="680" MinWidth="800" MinHeight="600" WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="CanResizeWithGrip">
+<Window.Resources>
+ <SolidColorBrush x:Key="Panel" Color="#1B142D"/>
+ <Style TargetType="Button"><Setter Property="Background" Value="#AE4BEB"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Margin" Value="5"/><Setter Property="Padding" Value="13,9"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="11" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style>
+ <Style TargetType="TextBox"><Setter Property="Foreground" Value="White"/><Setter Property="Background" Value="#29203D"/><Setter Property="BorderBrush" Value="#67487F"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Margin" Value="4"/><Setter Property="Padding" Value="8"/><Setter Property="Width" Value="65"/></Style>
+ <Style TargetType="CheckBox"><Setter Property="Foreground" Value="#F3E7FF"/><Setter Property="FontSize" Value="14"/><Setter Property="Margin" Value="8"/></Style>
+ <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#EEDFFF"/></Style>
+</Window.Resources>
+<Border CornerRadius="24" BorderBrush="#8C55B5" BorderThickness="1.5" Background="#110D1E" ClipToBounds="True">
+ <Grid>
+ <Grid.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#161020" Offset="0"/><GradientStop Color="#2A1746" Offset="0.62"/><GradientStop Color="#150E29" Offset="1"/></LinearGradientBrush></Grid.Background>
+ <Grid.RowDefinitions><RowDefinition Height="66"/><RowDefinition Height="*"/><RowDefinition Height="62"/></Grid.RowDefinitions>
+ <Grid Grid.Row="0" MouseLeftButtonDown="Drag">
+  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+  <StackPanel Orientation="Horizontal" Margin="25,17"><TextBlock Text="✿" Foreground="#FF70CB" FontSize="26" Margin="0,0,12,0"/><TextBlock Text="SAKURA LIVE" FontWeight="Bold" FontSize="22"/><TextBlock Text="  HYBRID" Foreground="#FF83D4" FontSize="22"/></StackPanel>
+  <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10"><Button Content="—" Click="Minimize" Width="42"/><Button Content="✕" Click="Close" Background="#D34B9D" Width="42"/></StackPanel>
+ </Grid>
+ <ScrollViewer Grid.Row="1" Margin="22,4,22,0" VerticalScrollBarVisibility="Auto">
+ <StackPanel>
+  <TextBlock x:Name="Welcome" FontSize="18" Margin="10,12"/>
+  <Border Background="#251C36" CornerRadius="18" Padding="18" Margin="4,10">
+   <StackPanel>
+    <TextBlock Text="🎮 MINECRAFT CONNECTION" FontSize="18" FontWeight="Bold" Foreground="#FF8FD8" Margin="0,0,0,12"/>
+    <StackPanel Orientation="Horizontal"><ComboBox x:Name="Instances" Width="465" Height="39" Margin="0,0,8,0" DisplayMemberPath="Label"/><Button Content="↻ Refresh" Click="Refresh"/><Button Content="Connect" Click="Connect" Background="#C345AA"/></StackPanel>
+    <TextBlock Text="Wähle deine Minecraft-Instanz mit Sakura Fabric." Foreground="#BBA3CC" Margin="5,10,0,0"/>
+   </StackPanel>
+  </Border>
+  <UniformGrid Columns="2">
+   <Border Background="#251C36" CornerRadius="18" Padding="18" Margin="4,10">
+    <StackPanel>
+     <TextBlock Text="⚡ ANCHOR MACRO" FontSize="18" FontWeight="Bold" Foreground="#FF8FD8"/>
+     <CheckBox x:Name="AnchorEnabled" Content="Enable · G key"/>
+     <WrapPanel><TextBlock Text="Anchor slot" VerticalAlignment="Center" Width="115"/><TextBox x:Name="AnchorSlot" Text="1"/></WrapPanel>
+     <WrapPanel><TextBlock Text="Glowstone slot" VerticalAlignment="Center" Width="115"/><TextBox x:Name="GlowSlot" Text="2"/></WrapPanel>
+     <WrapPanel><TextBlock Text="Totem final slot" VerticalAlignment="Center" Width="115"/><TextBox x:Name="TotemSlot" Text="9"/></WrapPanel>
+    </StackPanel>
+   </Border>
+   <Border Background="#251C36" CornerRadius="18" Padding="18" Margin="4,10">
+    <StackPanel>
+     <TextBlock Text="💎 CRYSTAL MACRO" FontSize="18" FontWeight="Bold" Foreground="#C998FF"/>
+     <CheckBox x:Name="CrystalEnabled" Content="Enable · H key"/>
+     <WrapPanel><TextBlock Text="Crystal slot" VerticalAlignment="Center" Width="115"/><TextBox x:Name="CrystalSlot" Text="3"/></WrapPanel>
+     <WrapPanel><TextBlock Text="Delay (ticks)" VerticalAlignment="Center" Width="115"/><TextBox x:Name="Delay" Text="3"/></WrapPanel>
+    </StackPanel>
+   </Border>
+  </UniformGrid>
+  <Border Background="#251C36" CornerRadius="18" Padding="18" Margin="4,10">
+   <StackPanel><TextBlock Text="🌸 CONNECTION SETTINGS" FontSize="17" FontWeight="Bold" Foreground="#FF8FD8"/><TextBlock Text="Konfiguration über lokalen Port (127.0.0.1), kein Prozess-Injektor." Margin="0,10,0,0" Foreground="#D6BDDF"/><Button Content="Apply Settings" Click="Apply" Background="#A63BC2" Width="200" HorizontalAlignment="Left" Margin="0,15,0,0"/></StackPanel>
+  </Border>
+ </StackPanel>
+ </ScrollViewer>
+ <Border Grid.Row="2" Background="#211631" CornerRadius="0,0,23,23"><TextBlock x:Name="Status" Text="Ready" Margin="28,18" FontSize="15" Foreground="#FF89D1"/></Border>
+ </Grid>
+</Border>
+</Window>
