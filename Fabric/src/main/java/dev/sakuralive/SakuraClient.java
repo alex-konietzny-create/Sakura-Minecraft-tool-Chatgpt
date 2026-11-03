@@ -19,7 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 public final class SakuraClient implements ClientModInitializer {
- private static volatile Config cfg=new Config();
+ private static volatile Config cfg=new Config(false,false,1,2,9,3,3);
  private static KeyBinding anchorKey,crystalKey;
  private static int step=0,timer=0,crystalTimer=0;
  private record Config(boolean anchor,boolean crystal,int anchorSlot,int glowSlot,int totemSlot,int crystalSlot,int delay) {}
