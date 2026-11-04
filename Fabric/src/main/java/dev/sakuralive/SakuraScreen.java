@@ -44,7 +44,7 @@ public final class SakuraScreen extends Screen {
   scale=Math.max(0.01f,Math.min(1.15f,Math.min((width-20f)/W,(height-20f)/H)));
   left=(width/scale-W)/2;top=(height/scale-H)/2;
   String[] names={"Anchor","Crystal","Utility"};
-  String[] desc={"Sequenz & Hotbar","Platzieren & Abbauen","Fast Place & Bewegung"};
+  String[] desc={"Sequenz & Hotbar","Halten & Timing","Tempo & Optik"};
   for(int i=0;i<3;i++){
    final int n=i;
    button(27,112+i*54,126,44,Skin.NAV,()->names[n],()->desc[n],()->tab==n,n,()->select(n));
@@ -277,7 +277,7 @@ public final class SakuraScreen extends Screen {
     }
    }else{
     round(c,x,y,bw,bh,8,blend(0xFF35232F,0xFF583248,hover));
-    String fitted=fit(text,bw-18);
+    String fitted=bw<40?text:fit(text,bw-18);
     label(c,fitted,x+(bw-textRenderer.getWidth(fitted))/2,y+(bh-8)/2,p.skin==Skin.KEY?PINK:WHITE);
    }
    if(w.isFocused())c.drawStrokedRectangle(x-2,y-2,bw+4,bh+4,0xFFFFB7D3);
