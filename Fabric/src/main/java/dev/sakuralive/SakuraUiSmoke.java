@@ -1,5 +1,4 @@
 package dev.sakuralive;
-
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -9,22 +8,18 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.*;
 import org.lwjgl.glfw.GLFW;
 import java.io.File;
-
-/** Opt-in dev-only UI check. No game world is joined and no gameplay is claimed. */
+/** Development-only rendering and input regression; no world or gameplay. */
 final class SakuraUiSmoke {
- private static final String[] NAMES={"anchor","legit","safe","double","crystal","fastplace","design","anchor-hotbar","anchor-controls"};
+ private static final String[] NAMES={"anchor-grid","crystal-grid","utility-grid","themes-grid","anchor-grid-blue"};
+ private static final int[] PAGES={1,0,2,3,1};
  private static int stage=-1,wait=60;
  private static boolean tested;
- private static void check(boolean value,String why){if(!value)throw new IllegalStateException("UI assertion: "+why);}
- private static Click pointer(SakuraScreen screen,double x,double y,int button){
-  double scale=Math.max(.01,Math.min(1.2,Math.min((screen.width-20.0)/920,(screen.height-20.0)/580)));
-  return new Click((screen.width-scale*920)/2+x*scale,(screen.height-scale*580)/2+y*scale,new MouseInput(button,0));
+ private static void check(boolean yes,String why){if(!yes)throw new IllegalStateException("Grid UI: "+why);}
+ private static Click pointer(SakuraScreen s,double x,double y,int b){
+  double scale=Math.max(.01,Math.min(1.2,Math.min((s.width-20.0)/920,(s.height-20.0)/600)));
+  return new Click((s.width-scale*920)/2+x*scale,(s.height-scale*600)/2+y*scale,new MouseInput(b,0));
  }
- private static void click(SakuraScreen screen,double x,double y){
-  var p=pointer(screen,x,y,0);check(screen.mouseClicked(p,false),"click "+x+","+y);screen.mouseReleased(p);
- }
- private static SakuraScreen page(MinecraftClient mc,int tab,int section){var screen=new SakuraScreen(tab,section);mc.setScreen(screen);return screen;}
-
+ private static void click(SakuraScreen s,double x,double y){var p=pointer(s,x,y,0);check(s.mouseClicked(p,false),"click "+x+","+y);s.mouseReleased(p);}
  private static void verifyFirePlacement(){
   final var target=new net.minecraft.util.math.BlockPos(0,1,0);
   final var support=target.down();
@@ -50,57 +45,46 @@ final class SakuraUiSmoke {
   System.out.println("[Sakura UI smoke] PASS: normal fire and soul fire placement rays, exact target cell, solid obstruction");
  }
 
- private static void verifyInputs(MinecraftClient mc){
+
+ private static void verify(MinecraftClient mc){
   verifyFirePlacement();
-  var s=SakuraClient.settings;boolean motion=s.reduceMotion,anchor=s.anchor;
-  int oldMs=s.anchorOptions.placeMs,oldSlot=s.anchorOptions.anchorSlot;
+  var s=SakuraClient.settings;boolean motion=s.reduceMotion,anchor=s.anchor,blue=s.blueAccent;
+  int delay=s.anchorOptions.placeMs,slot=s.anchorOptions.anchorSlot;
   s.reduceMotion=true;
-  for(int[] size:new int[][]{{320,200},{460,290},{640,400}}){
-   var screen=page(mc,0,0);screen.resize(size[0],size[1]);
-   click(screen,250,120);check(s.anchor!=anchor,"switch inverse scale");
-   click(screen,250,120);check(s.anchor==anchor,"switch restoration");
-   var from=pointer(screen,604,284,0);var to=pointer(screen,234,284,0);
-   check(screen.mouseClicked(from,false),"slider press");check(s.anchorOptions.placeMs==2000,"slider maximum");
-   screen.mouseDragged(to,to.x()-from.x(),0);check(s.anchorOptions.placeMs==10,"slider drag minimum");screen.mouseReleased(to);
-   screen.keyPressed(new KeyInput(GLFW.GLFW_KEY_RIGHT,0,0));check(s.anchorOptions.placeMs==11,"1 ms keyboard step");
-   click(screen,540,258);check(screen.getFocused() instanceof TextFieldWidget,"numeric field receives pointer, not slider");
-   ((TextFieldWidget)screen.getFocused()).setText("137");
-   screen.keyPressed(new KeyInput(GLFW.GLFW_KEY_ENTER,0,0));
-   check(s.anchorOptions.placeMs==137&&SakuraSettings.load().anchorOptions.placeMs==137,"exact millisecond input persists");
+  for(int[] size:new int[][]{{320,210},{460,300},{640,420}}){
+   var screen=new SakuraScreen(1);mc.setScreen(screen);screen.resize(size[0],size[1]);
+   click(screen,517,145);check(s.anchor!=anchor,"power toggle");click(screen,517,145);check(s.anchor==anchor,"power restore");
+   click(screen,455,230);check(screen.getFocused() instanceof TextFieldWidget,"delay field focus");
+   ((TextFieldWidget)screen.getFocused()).setText("137");screen.keyPressed(new KeyInput(GLFW.GLFW_KEY_ENTER,0,0));
+   check(s.anchorOptions.placeMs==137&&SakuraSettings.load().anchorOptions.placeMs==137,"millisecond persistence");
+   click(screen,455,260);check(screen.getFocused() instanceof TextFieldWidget,"slot field focus");
+   ((TextFieldWidget)screen.getFocused()).setText("8");screen.keyPressed(new KeyInput(GLFW.GLFW_KEY_ENTER,0,0));
+   check(s.anchorOptions.anchorSlot==8,"slot editing");
   }
-  var screen=page(mc,0,1);click(screen,584,294);check(s.anchorOptions.anchorSlot==9,"slot grid");
-  var key=SakuraClient.anchorKey;var old=InputUtil.fromTranslationKey(key.getBoundKeyTranslationKey());
-  screen=page(mc,0,2);click(screen,250,270);
-  var input=new KeyInput(GLFW.GLFW_KEY_F8,0,0);screen.keyPressed(input);check(key.matchesKey(input),"inline key");
-  click(screen,250,270);screen.keyPressed(new KeyInput(GLFW.GLFW_KEY_ESCAPE,0,0));check(key.matchesKey(input),"capture cancel");
-  click(screen,250,270);var mouse=pointer(screen,0,0,3);screen.mouseClicked(mouse,false);check(key.matchesMouse(mouse),"inline mouse");
-  key.setBoundKey(old);KeyBinding.updateKeysByCode();mc.options.write();
-  s.anchorOptions.placeMs=oldMs;s.anchorOptions.anchorSlot=oldSlot;s.reduceMotion=motion;s.save();
-  System.out.println("[Sakura UI smoke] PASS: scaled input, numeric ms fields, slider drag, 1 ms steps, persistence, hotbar and keyboard/mouse binding");
- }
- private static SakuraScreen screenshotPage(int index){
-  return index<7?new SakuraScreen(index):new SakuraScreen(0,index==7?1:2);
+  var key=SakuraClient.anchorKey;var original=InputUtil.fromTranslationKey(key.getBoundKeyTranslationKey());
+  var screen=new SakuraScreen(1);mc.setScreen(screen);click(screen,475,203);
+  var input=new KeyInput(GLFW.GLFW_KEY_F8,0,0);screen.keyPressed(input);check(key.matchesKey(input),"key capture");
+  click(screen,475,203);screen.keyPressed(new KeyInput(GLFW.GLFW_KEY_ESCAPE,0,0));check(key.matchesKey(input),"capture cancellation");
+  click(screen,475,203);var mouse=pointer(screen,0,0,3);screen.mouseClicked(mouse,false);check(key.matchesMouse(mouse),"mouse capture");
+  key.setBoundKey(original);KeyBinding.updateKeysByCode();mc.options.write();
+  screen=new SakuraScreen(1);mc.setScreen(screen);click(screen,505,171);
+  check(mc.currentScreen instanceof SakuraDetailsScreen,"advanced settings");mc.currentScreen.close();
+  check(mc.currentScreen instanceof SakuraScreen,"details back navigation");
+  screen=new SakuraScreen(3);mc.setScreen(screen);click(screen,440,175);check(s.blueAccent,"theme switch");
+  s.reduceMotion=motion;s.blueAccent=blue;s.anchorOptions.placeMs=delay;s.anchorOptions.anchorSlot=slot;s.save();
+  System.out.println("[Sakura UI smoke] PASS: card power toggles, direct ms/slot fields, persistence, keyboard/mouse binding, advanced navigation and theme; three UI sizes");
  }
  static void install(){
   ClientTickEvents.END_CLIENT_TICK.register(mc->{
    if(mc.getOverlay()!=null||wait-->0)return;
-   if(stage==-1){
-    for(int i=0;i<6;i++)if(!SakuraClient.enabled(i))SakuraClient.toggle(i);
-    mc.setScreen(screenshotPage(0));stage=0;wait=40;return;
-   }
-   if(!tested){
-    verifyInputs(mc);tested=true;mc.setScreen(screenshotPage(0));wait=40;return;
-   }
+   if(stage==-1){for(int i=0;i<6;i++)if(!SakuraClient.enabled(i))SakuraClient.toggle(i);mc.setScreen(new SakuraScreen(1));stage=0;wait=40;return;}
+   if(!tested){verify(mc);tested=true;mc.setScreen(new SakuraScreen(1));wait=40;return;}
    if(stage<NAMES.length){
-    ScreenshotRecorder.saveScreenshot(mc.runDirectory,"sakura-"+NAMES[stage]+".png",mc.getFramebuffer(),1,
-      text->System.out.println("[Sakura UI smoke] "+text.getString()));
-    stage++;if(stage<NAMES.length)mc.setScreen(screenshotPage(stage));wait=40;return;
+    ScreenshotRecorder.saveScreenshot(mc.runDirectory,"sakura-"+NAMES[stage]+".png",mc.getFramebuffer(),1,t->System.out.println("[Sakura UI smoke] "+t.getString()));
+    stage++;if(stage<NAMES.length){SakuraClient.settings.blueAccent=stage==4;mc.setScreen(new SakuraScreen(PAGES[stage]));}wait=40;return;
    }
-   for(String name:NAMES){
-    File file=new File(mc.runDirectory,"screenshots/sakura-"+name+".png");
-    check(file.isFile()&&file.length()>0,"missing screenshot "+name);
-   }
-   System.out.println("[Sakura UI smoke] Rendered seven module pages and two settings sections. No gameplay test.");
+   for(var name:NAMES){var file=new File(mc.runDirectory,"screenshots/sakura-"+name+".png");check(file.isFile()&&file.length()>0,"screenshot "+name);}
+   System.out.println("[Sakura UI smoke] Grid pages rendered successfully. No gameplay test.");
    mc.scheduleStop();wait=Integer.MAX_VALUE;
   });
  }
