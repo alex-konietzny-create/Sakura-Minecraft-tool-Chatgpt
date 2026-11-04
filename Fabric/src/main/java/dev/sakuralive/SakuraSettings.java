@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 
 public final class SakuraSettings {
+ public boolean reduceMotion = false;
  public boolean anchor = false;
  public boolean crystal = false;
  public boolean fastPlace = false;
@@ -37,9 +38,9 @@ public final class SakuraSettings {
   actionDelay=cap(actionDelay,1,20);placeDelay=cap(placeDelay,0,4);
  }
  private static int cap(int n,int min,int max){return Math.max(min,Math.min(max,n));}
- public void save(){
+ public boolean save(){
   clamp();
-  try{Files.createDirectories(FILE.getParent());Files.writeString(FILE,GSON.toJson(this),StandardCharsets.UTF_8);}
-  catch(Exception e){System.err.println("[Sakura] Could not save settings: "+e);}
+  try{Files.createDirectories(FILE.getParent());Files.writeString(FILE,GSON.toJson(this),StandardCharsets.UTF_8);return true;}
+  catch(Exception e){System.err.println("[Sakura] Could not save settings: "+e);return false;}
  }
 }
