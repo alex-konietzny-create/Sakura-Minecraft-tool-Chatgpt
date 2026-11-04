@@ -3,5 +3,8 @@
   "key.sakuralive.anchor": "Run / cancel anchor sequence",
   "key.sakuralive.crystal": "Toggle crystal assist",
   "key.sakuralive.fastplace": "Toggle fast place",
-  "key.sakuralive.menu": "Open Sakura Live"
+  "key.sakuralive.menu": "Open Sakura Live",
+  "key.sakuralive.legit": "Run / cancel Legit Anchor",
+  "key.sakuralive.safe": "Run / cancel Safe Anchor",
+  "key.sakuralive.double": "Run / cancel Double Anchor"
 }

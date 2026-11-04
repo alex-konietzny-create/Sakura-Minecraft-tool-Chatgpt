@@ -1,365 +1,359 @@
 package dev.sakuralive;
 
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.*;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.option.KeybindsScreen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.gui.widget.*;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.text.*;
+import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.function.*;
 
-/**
- * Logical 760 x 480 canvas. Rendering and every pointer event share the same
- * transform, including the opening motion. Native widgets retain keyboard focus,
- * click sounds, narration and slider dragging; their skins are drawn here.
- */
+/** Original settings workspace. One inverse transform serves all pointer events. */
 public final class SakuraScreen extends Screen {
- private static final int W=760,H=480;
- private static final int PINK=0xFFFF659F, WHITE=0xFFFFEDF4, MUTED=0xFFB49EA9;
- private static final int CARD=0xFF1C171C, BORDER=0xFF382630;
+ static final int W=920,H=580;
+ private static final int PINK=0xFFFF78AB,INK=0xFFF1EDF3,MUTED=0xFFAAA3B0,BORDER=0xFF302B35;
+ private static final String[] NAMES={"Anchor","Legit Anchor","Safe Anchor","Double Anchor","Crystal","Fast Place","Design"};
+ private static final String[] SHORT={"Standard-Sequenz","Bewusst halten","Glowstone-Deckung","Zwei Durchläufe","Halten & Ausführen","Schneller platzieren","Darstellung"};
  private final SakuraSettings s=SakuraClient.settings;
  private final List<Control> controls=new ArrayList<>();
- private final List<DelaySlider> sliders=new ArrayList<>();
- private float scale=1,left,top,dt,railY=112;
- private int tab;
- private long opened=System.nanoTime(),pageOpened=opened,lastFrame=opened,noticeUntil;
- private KeyBinding capture;
- private String notice="";
+ private final List<MsSlider> sliders=new ArrayList<>();
+ private final List<NumberField> fields=new ArrayList<>();
+ private int tab,section;
+ private float scale,left,top,dt,rail;
+ private long opened=System.nanoTime(),pageOpened=opened,lastFrame=opened,changedAt,noticeUntil;
  private boolean dirty;
- private enum Skin { NAV, HERO, SWITCH, KEY, SLOT, BUTTON }
- private record Control(ButtonWidget widget,Skin skin,Supplier<String> title,
-   Supplier<String> detail,BooleanSupplier selected,int index,float[] tween) {}
+ private String notice="";
+ private KeyBinding capture;
+ private enum Skin { NAV,TAB,SWITCH,HERO,KEY,SLOT,BUTTON }
+ private record Control(ButtonWidget widget,Skin skin,Supplier<String> text,Supplier<String> detail,BooleanSupplier selected,int index,float[] tween){}
+ private record NumberField(TextFieldWidget widget,IntSupplier get,IntConsumer set,int min,int max){}
  public SakuraScreen(){this(0);}
- SakuraScreen(int initialTab){super(Text.literal("Sakura Live · Pink"));tab=initialTab;railY=112+tab*54;}
+ SakuraScreen(int initial){this(initial,0);}
+ SakuraScreen(int initial,int initialSection){super(Text.literal("Sakura Live"));tab=initial;section=initialSection;rail=104+tab*43;}
  @Override protected void init(){
-  controls.clear();sliders.clear();capture=null;
-  scale=Math.max(0.01f,Math.min(1.15f,Math.min((width-20f)/W,(height-20f)/H)));
+  controls.clear();sliders.clear();fields.clear();capture=null;
+  scale=Math.max(0.01f,Math.min(1.2f,Math.min((width-20f)/W,(height-20f)/H)));
   left=(width/scale-W)/2;top=(height/scale-H)/2;
-  String[] names={"Anchor","Crystal","Utility"};
-  String[] desc={"Sequenz & Hotbar","Halten & Timing","Tempo & Optik"};
-  for(int i=0;i<3;i++){
+  for(int i=0;i<7;i++){
    final int n=i;
-   button(27,112+i*54,126,44,Skin.NAV,()->names[n],()->desc[n],()->tab==n,n,()->select(n));
+   button(24,104+i*43,148,36,Skin.NAV,()->NAMES[n],()->SHORT[n],()->tab==n,i,()->select(n,0));
   }
-  button(720,21,22,24,Skin.BUTTON,()->"×",()->"Menü schließen",()->false,0,this::close);
-  button(29,354,122,30,Skin.KEY,()->"Menü: "+keyName(SakuraClient.menuKey),
-    ()->conflict(SakuraClient.menuKey),()->capture==SakuraClient.menuKey,0,()->capture=SakuraClient.menuKey);
-  button(29,402,122,28,Skin.BUTTON,()->"Alle Hotkeys",()->"Minecraft-Tastenbelegung öffnen",()->false,0,
+  button(872,21,24,24,Skin.BUTTON,()->"×",()->"Schließen",()->false,0,this::close);
+  button(28,470,140,28,Skin.KEY,()->keyName(SakuraClient.menuKey),()->conflict(SakuraClient.menuKey),()->false,0,()->capture=SakuraClient.menuKey);
+  button(28,510,140,28,Skin.BUTTON,()->"Alle Hotkeys",()->"Minecraft-Tastenbelegung",()->false,0,
     ()->client.setScreen(new KeybindsScreen(this,client.options)));
-  button(190,101,546,58,Skin.HERO,()->tab==0?"Anchor-Makro":tab==1?"Crystal-Assistent":"Fast Place",
-    this::moduleHint,this::enabled,0,()->{
-     if(tab==0)s.anchor=!s.anchor;else if(tab==1)s.crystal=!s.crystal;else s.fastPlace=!s.fastPlace;
-     changed();
-    });
-  if(tab==0){
-   slots(246,()->s.anchorSlot,n->s.anchorSlot=n,"Anchor");
-   slots(300,()->s.glowSlot,n->s.glowSlot=n,"Glowstone");
-   slots(354,()->s.totemSlot,n->s.totemSlot=n,"Finaler Slot");
-   delay(486,224,234,"Schritt-Delay",()->s.actionDelay,n->s.actionDelay=n,1,20);
-   bind(486,338,234);
-  }else if(tab==1){
-   delay(206,226,234,"Platzierpause",()->s.crystalPlaceDelay,n->s.crystalPlaceDelay=n,1,20);
-   delay(206,314,234,"Abbaupause",()->s.crystalBreakDelay,n->s.crystalBreakDelay=n,1,20);
-   bind(486,225,234);
+  if(tab==6){
+   toggle(230,250,378,"Weiche Animationen",()->!s.reduceMotion,()->s.reduceMotion=!s.reduceMotion);
+   toggle(230,320,378,"Klare Schrift",()->s.smoothFont,()->s.smoothFont=!s.smoothFont);
+   button(230,404,378,38,Skin.KEY,()->"Menü · "+keyName(SakuraClient.menuKey),()->"Hotkey direkt ändern",()->false,0,()->capture=SakuraClient.menuKey);
+   return;
+  }
+  button(210,96,686,56,Skin.HERO,()->NAMES[tab],this::hint,()->SakuraClient.enabled(tab),0,()->{SakuraClient.toggle(tab);changed();});
+  String[] labels=tab<4?new String[]{"Timing","Hotbar","Verhalten"}:new String[]{"Timing","Verhalten"};
+  for(int i=0;i<labels.length;i++){
+   final int n=i;
+   button(210+i*126,169,118,29,Skin.TAB,()->labels[n],()->"Einstellungen: "+labels[n],()->section==n,0,()->select(tab,n));
+  }
+  var o=SakuraClient.optionsFor(tab);
+  if(section==0){
+   if(tab<4){
+    slider(230,253,378,"Nach Platzierung",()->o.placeMs,n->o.placeMs=n,10,2000);
+    slider(230,317,378,"Nach dem Laden",()->o.chargeMs,n->o.chargeMs=n,10,2000);
+    slider(230,381,378,"Slot-Vorbereitung",()->o.switchMs,n->o.switchMs=n,0,500);
+    if(tab==2)slider(230,445,378,"Nach Glowstone-Deckung",()->o.coverMs,n->o.coverMs=n,10,2000);
+    if(tab==3)slider(230,445,378,"Zwischen beiden Durchläufen",()->o.repeatMs,n->o.repeatMs=n,10,2000);
+   }else if(tab==4){
+    slider(230,253,378,"Vor nächster Platzierung",()->s.crystalPlaceMs,n->s.crystalPlaceMs=n,10,2000);
+    slider(230,337,378,"Vor dem Abbau",()->s.crystalBreakMs,n->s.crystalBreakMs=n,10,2000);
+    slider(230,421,378,"Bestätigung: Zeitlimit",()->s.crystalTimeoutMs,n->s.crystalTimeoutMs=n,250,10000);
+   }else{
+    slider(230,253,378,"Platzierpause",()->s.placeDelayMs,n->s.placeDelayMs=n,0,200);
+    toggle(230,350,378,"Anchor / Glowstone ausnehmen",()->s.excludeAnchors,()->s.excludeAnchors=!s.excludeAnchors);
+   }
+  }else if(tab<4&&section==1){
+   slots(276,()->o.anchorSlot,n->o.anchorSlot=n,"Anchor-Slot");
+   slots(348,()->o.glowSlot,n->o.glowSlot=n,"Glowstone-Slot");
+   slots(420,()->o.finalSlot,n->o.finalSlot=n,"Finaler Slot");
   }else{
-   delay(206,226,234,"Platzierpause",()->s.placeDelay,n->s.placeDelay=n,0,4);
-   button(206,320,234,54,Skin.SWITCH,()->"Anchor ausschließen",()->"Anchor & Glowstone ausnehmen",
-     ()->s.excludeAnchors,0,()->{s.excludeAnchors=!s.excludeAnchors;changed();});
-   bind(486,225,234);
-   button(486,320,234,54,Skin.SWITCH,()->"Animationen",()->s.reduceMotion?"Bewegung reduziert":"Weiche Übergänge",
-     ()->!s.reduceMotion,0,()->{s.reduceMotion=!s.reduceMotion;changed();});
-  }
- }
- private void select(int next){
-  if(next==tab)return;
-  flush();tab=next;pageOpened=System.nanoTime();clearAndInit();
- }
- private void button(int x,int y,int w,int h,Skin skin,Supplier<String> title,Supplier<String> detail,
-                     BooleanSupplier selected,int index,Runnable action){
-  var widget=addDrawableChild(ButtonWidget.builder(Text.literal(title.get()),b->action.run()).dimensions(x,y,w,h).build());
-  controls.add(new Control(widget,skin,title,detail,selected,index,new float[]{0,selected.getAsBoolean()?1:0}));
- }
- private void slots(int y,IntSupplier get,IntConsumer set,String label){
-  for(int i=1;i<=9;i++){
-   final int slot=i;
-   button(206+(i-1)*26,y,24,30,Skin.SLOT,()->Integer.toString(slot),
-     ()->label+" auf Hotbar-Slot "+slot+" setzen",()->get.getAsInt()==slot,slot,
-     ()->{set.accept(slot);changed();});
-  }
- }
- private void bind(int x,int y,int w){
-  button(x,y,w,32,Skin.KEY,()->keyName(moduleKey()),()->"Klicken und Taste oder Maustaste drücken",
-    ()->capture==moduleKey(),0,()->capture=moduleKey());
- }
- private void delay(int x,int y,int w,String name,IntSupplier get,IntConsumer set,int min,int max){
-  sliders.add(addDrawableChild(new DelaySlider(x,y,w,name,get,set,min,max)));
- }
- private KeyBinding moduleKey(){return tab==0?SakuraClient.anchorKey:tab==1?SakuraClient.crystalKey:SakuraClient.fastKey;}
- private boolean enabled(){return tab==0?s.anchor:tab==1?s.crystal:s.fastPlace;}
- private String keyName(KeyBinding key){return key.getBoundKeyLocalizedText().getString();}
- private String conflict(KeyBinding key){
-  if(key.isUnbound())return "Nicht belegt";
-  for(var other:client.options.allKeys)
-   if(other!=key&&!other.isUnbound()&&key.equals(other))return "Konflikt: "+Text.translatable(other.getId()).getString();
-  return "Klicken zum Ändern · Esc bricht ab";
- }
- private String moduleHint(){
-  if(!enabled())return "Ausgeschaltet · hier aktivieren";
-  if(client.player==null)return "Aktiviert · keine Welt geöffnet";
-  if(tab==1&&!client.player.getMainHandStack().isOf(Items.END_CRYSTAL))return "Aktiviert · Kristalle in die Haupthand nehmen";
-  if(tab==0&&client.world!=null
-     &&client.crosshairTarget instanceof net.minecraft.util.hit.BlockHitResult hit
-     &&hit.getType()==net.minecraft.util.hit.HitResult.Type.BLOCK){
-   var state=client.world.getBlockState(hit.getBlockPos());
-   if(state.isOf(net.minecraft.block.Blocks.RESPAWN_ANCHOR)){
-    if(state.get(net.minecraft.block.RespawnAnchorBlock.CHARGES)>0)return "Vorhandener Anchor geladen · Hotkey zum Auslösen";
-    return client.player.getInventory().getStack(s.glowSlot-1).isOf(Items.GLOWSTONE)
-      ?"Vorhandener Anchor · Laden und Auslösen":"Vorhandener Anchor ungeladen · Glowstone fehlt";
+   button(230,255,378,36,Skin.KEY,()->keyName(SakuraClient.keyFor(tab)),()->"Klicken und Taste oder Maustaste drücken",()->false,0,()->capture=SakuraClient.keyFor(tab));
+   if(tab<4){
+    toggle(230,333,378,"Exaktes Anvisieren",()->o.requireAim,()->o.requireAim=!o.requireAim);
+    toggle(230,391,378,"Hotkey gedrückt halten",()->o.holdToRun,()->o.holdToRun=!o.holdToRun);
+    slider(230,451,378,"Bestätigung: Zeitlimit",()->o.timeoutMs,n->o.timeoutMs=n,250,10000);
    }
   }
-  if(tab==0&&!client.player.getInventory().getStack(s.anchorSlot-1).isOf(Items.RESPAWN_ANCHOR))return "Aktiviert · im Anchor-Slot fehlt ein Anchor";
-  if(tab==0&&!client.player.getInventory().getStack(s.glowSlot-1).isOf(Items.GLOWSTONE))return "Aktiviert · im Glowstone-Slot fehlt Glowstone";
-  return tab==0?"Aktiviert · Starten / Abbrechen mit "+keyName(moduleKey()):
-         tab==1?"Aktiviert · rechte Maustaste zum Ausführen halten":"Aktiviert · beim Halten der Benutzen-Taste";
  }
- private void changed(){dirty=true;flush();}
+ private void select(int next,int nextSection){flush();tab=next;section=nextSection;pageOpened=System.nanoTime();clearAndInit();}
+ private void button(int x,int y,int w,int h,Skin skin,Supplier<String> text,Supplier<String> detail,BooleanSupplier selected,int index,Runnable action){
+  var widget=addDrawableChild(ButtonWidget.builder(Text.literal(text.get()),b->action.run()).dimensions(x,y,w,h).build());
+  controls.add(new Control(widget,skin,text,detail,selected,index,new float[]{0,selected.getAsBoolean()?1:0}));
+ }
+ private void toggle(int x,int y,int w,String name,BooleanSupplier get,Runnable change){
+  button(x,y,w,42,Skin.SWITCH,()->name,()->get.getAsBoolean()?"Aktiviert":"Deaktiviert",get,0,()->{change.run();changed();});
+ }
+ private void slots(int y,IntSupplier get,IntConsumer set,String title){
+  for(int i=1;i<=9;i++){
+   final int slot=i;
+   button(230+(i-1)*42,y,36,36,Skin.SLOT,()->Integer.toString(slot),()->title+": "+slot,()->get.getAsInt()==slot,slot,()->{set.accept(slot);changed();});
+  }
+ }
+ private void slider(int x,int y,int w,String name,IntSupplier get,IntConsumer set,int min,int max){
+  sliders.add(addDrawableChild(new MsSlider(x,y,w,name,get,set,min,max)));
+  var field=addDrawableChild(new TextFieldWidget(textRenderer,x+w-78,y-3,58,22,Text.literal(name+" in Millisekunden")));
+  field.setDrawsBackground(false);field.setEditableColor(PINK);field.setMaxLength(5);
+  field.setText(Integer.toString(get.getAsInt()));field.setTextPredicate(v->v.matches("[0-9]{0,5}"));
+  field.setChangedListener(v->{
+   if(!v.isEmpty()){
+    int n=Integer.parseInt(v);
+    if(n>=min&&n<=max&&n!=get.getAsInt()){set.accept(n);dirty=true;changedAt=System.nanoTime();}
+   }
+  });
+  fields.add(new NumberField(field,get,set,min,max));
+ }
+ private String keyName(KeyBinding key){return key.getBoundKeyLocalizedText().getString();}
+ private String conflict(KeyBinding key){
+  if(key.isUnbound())return "Nicht belegt · klicken zum Zuweisen";
+  for(var other:client.options.allKeys)if(other!=key&&!other.isUnbound()&&key.equals(other))
+   return "Konflikt: "+Text.translatable(other.getId()).getString();
+  return "Taste oder Maus · Esc bricht ab";
+ }
+ private String hint(){
+  if(!SakuraClient.enabled(tab))return "Deaktiviert · hier einschalten";
+  return switch(tab){
+   case 1->"Langsamere Abläufe · Haltemodus separat einstellbar";
+   case 2->"Glowstone vor dem Auslösen als Deckung · ohne Totem-Prüfung";
+   case 3->"Zwei Anchor auf exakt derselben Blockposition";
+   case 4->"Kristalle in der Haupthand + rechte Maustaste halten";
+   case 5->"Block in der Hand + Benutzen-Taste halten";
+   default->"Vorhandenen Anchor erkennen oder neuen platzieren";
+  };
+ }
+ private void changed(){dirty=true;changedAt=System.nanoTime();flush();}
  private void flush(){
   if(!dirty)return;
-  boolean ok=s.save();dirty=!ok;
-  notifyUser(ok?"Einstellungen gespeichert":"Speichern fehlgeschlagen · siehe Log");
+  boolean success=s.save();dirty=!success;
+  notice=success?"Gespeichert":"Speichern fehlgeschlagen";noticeUntil=System.nanoTime()+1_500_000_000L;
  }
- private void notifyUser(String message){notice=message;noticeUntil=System.nanoTime()+2_000_000_000L;}
+ @Override public void tick(){if(dirty&&System.nanoTime()-changedAt>350_000_000L)flush();}
  private void assign(InputUtil.Key key){
-  capture.setBoundKey(key);KeyBinding.updateKeysByCode();client.options.write();
-  notifyUser("Hotkey gesetzt: "+keyName(capture));capture=null;
+  capture.setBoundKey(key);KeyBinding.updateKeysByCode();client.options.write();capture=null;
+  notice="Hotkey gespeichert";noticeUntil=System.nanoTime()+1_500_000_000L;
  }
  @Override public boolean keyPressed(KeyInput input){
   if(capture!=null){
    if(input.key()==GLFW.GLFW_KEY_ESCAPE){capture=null;return true;}
-   assign(input.key()==GLFW.GLFW_KEY_DELETE||input.key()==GLFW.GLFW_KEY_BACKSPACE
-     ?InputUtil.UNKNOWN_KEY:InputUtil.fromKeyCode(input));return true;
+   assign(input.key()==GLFW.GLFW_KEY_DELETE||input.key()==GLFW.GLFW_KEY_BACKSPACE?InputUtil.UNKNOWN_KEY:InputUtil.fromKeyCode(input));return true;
   }
+  if(input.key()==GLFW.GLFW_KEY_ENTER){flush();}
   return super.keyPressed(input);
  }
- private float introOffset(){
+ private float offset(){
   if(s.reduceMotion)return 0;
-  float t=Math.min(1,(System.nanoTime()-opened)/260_000_000f);
-  return 16*(1-t)*(1-t)*(1-t);
+  float t=Math.min(1,(System.nanoTime()-opened)/240_000_000f);return 14*(1-t)*(1-t)*(1-t);
  }
- private Click local(Click click){return new Click(click.x()/scale-left,click.y()/scale-top-introOffset(),click.buttonInfo());}
+ private Click local(Click click){return new Click(click.x()/scale-left,click.y()/scale-top-offset(),click.buttonInfo());}
  @Override public boolean mouseClicked(Click click,boolean doubled){
   if(capture!=null){assign(InputUtil.Type.MOUSE.createFromCode(click.button()));return true;}
   return super.mouseClicked(local(click),doubled);
  }
- @Override public boolean mouseReleased(Click click){
-  boolean result=super.mouseReleased(local(click));flush();return result;
- }
- @Override public boolean mouseDragged(Click click,double dx,double dy){
-  if(capture!=null)return true;
-  return super.mouseDragged(local(click),dx/scale,dy/scale);
- }
+ @Override public boolean mouseDragged(Click click,double dx,double dy){return capture!=null||super.mouseDragged(local(click),dx/scale,dy/scale);}
+ @Override public boolean mouseReleased(Click click){boolean done=super.mouseReleased(local(click));flush();return done;}
  @Override public void removed(){capture=null;flush();super.removed();}
  @Override public void close(){capture=null;flush();super.close();}
  @Override public boolean shouldPause(){return false;}
-
- private static float ease(float from,float to,float rate){return from+(to-from)*rate;}
- private float rate(){return s.reduceMotion?1:1-(float)Math.exp(-dt*16);}
- private static int blend(int a,int b,float t){
-  t=Math.max(0,Math.min(1,t));int result=0;
-  for(int shift=0;shift<=24;shift+=8)result|=((int)(((a>>>shift)&255)*(1-t)+((b>>>shift)&255)*t))<<shift;
-  return result;
+ private float rate(){return s.reduceMotion?1:1-(float)Math.exp(-dt*17);}
+ private float ease(float a,float b){return a+(b-a)*rate();}
+ private int mix(int a,int b,float t){
+  int out=0;for(int shift=0;shift<=24;shift+=8)out|=(int)(((a>>>shift)&255)*(1-t)+((b>>>shift)&255)*t)<<shift;return out;
+ }
+ private Text ui(String value){
+  var text=Text.literal(value);
+  return s.smoothFont?text.setStyle(Style.EMPTY.withFont(new StyleSpriteSource.Font(Identifier.of("sakuralive","ui")))):text;
+ }
+ private int tw(String value){return textRenderer.getWidth(ui(value));}
+ private String fit(String value,int max){
+  if(tw(value)<=max)return value;
+  return textRenderer.trimToWidth(ui(value),Math.max(0,max-tw("…"))).getString()+"…";
+ }
+ private void label(DrawContext c,String value,int x,int y,int color){c.drawText(textRenderer,ui(value),x,y,color,false);}
+ private void small(DrawContext c,String value,int x,int y,int color,int max){label(c,fit(value,max),x,y,color);}
+ private void title(DrawContext c,String value,int x,int y,float size){
+  c.getMatrices().pushMatrix();c.getMatrices().translate(x,y);c.getMatrices().scale(size,size);label(c,value,0,0,INK);c.getMatrices().popMatrix();
  }
  private void round(DrawContext c,int x,int y,int w,int h,int radius,int color){
-  if(w<=0||h<=0)return;
-  int r=Math.min(radius,Math.min(w,h)/2);
-  c.fill(x,y+r,x+w,y+h-r,color);
+  if(w<=0||h<=0)return;int r=Math.min(radius,Math.min(w,h)/2);c.fill(x,y+r,x+w,y+h-r,color);
   for(int i=0;i<r;i++){
-   int inset=(int)Math.ceil(r-Math.sqrt(r*r-(r-i-0.5)*(r-i-0.5)));
-   c.fill(x+inset,y+i,x+w-inset,y+i+1,color);
-   c.fill(x+inset,y+h-i-1,x+w-inset,y+h-i,color);
+   int inset=(int)Math.ceil(r-Math.sqrt(r*r-(r-i-.5)*(r-i-.5)));
+   c.fill(x+inset,y+i,x+w-inset,y+i+1,color);c.fill(x+inset,y+h-i-1,x+w-inset,y+h-i,color);
   }
  }
- private void panel(DrawContext c,int x,int y,int w,int h){
-  round(c,x,y,w,h,14,BORDER);round(c,x+1,y+1,w-2,h-2,13,CARD);
+ private void card(DrawContext c,int x,int y,int w,int h){
+  round(c,x,y,w,h,12,BORDER);round(c,x+1,y+1,w-2,h-2,11,0xFF19171E);
  }
- private void label(DrawContext c,String text,int x,int y,int color){c.drawText(textRenderer,text,x,y,color,false);}
- private String fit(String text,int w){return textRenderer.getWidth(text)<=w?text:textRenderer.trimToWidth(text,Math.max(0,w-12))+"…";}
- private void small(DrawContext c,String text,int x,int y,int color,int w){label(c,fit(text,w),x,y,color);}
- private void title(DrawContext c,String text,int x,int y,float size,int color){
-  c.getMatrices().pushMatrix();c.getMatrices().translate(x,y);c.getMatrices().scale(size,size);
-  label(c,text,0,0,color);c.getMatrices().popMatrix();
+ private void switchAt(DrawContext c,int x,int y,float on){
+  round(c,x,y,34,18,9,mix(0xFF44404B,0xFFDD5B92,on));round(c,x+3+Math.round(on*16),y+3,12,12,6,INK);
  }
- private void switchTrack(DrawContext c,int x,int y,float value){
-  round(c,x-2,y-2,48,24,12,blend(0x00382A33,0x334E283A,value));
-  round(c,x,y,44,20,10,blend(0xFF42333D,0xFFEA508C,value));
-  round(c,x+3+Math.round(24*value),y+3,14,14,7,WHITE);
- }
- private void blossom(DrawContext c,int x,int y){
-  // Five geometric petals, original mark rendered without external textures.
-  int[][] petals={{0,-7},{7,-2},{4,6},{-4,6},{-7,-2}};
-  for(int[] p:petals)round(c,x+p[0]-4,y+p[1]-4,8,8,4,PINK);
-  round(c,x-3,y-3,6,6,3,0xFFFFCBDF);
+ private void flower(DrawContext c){
+  for(int[] p:new int[][]{{0,-7},{7,-2},{4,6},{-4,6},{-7,-2}})round(c,42+p[0]-4,41+p[1]-4,8,8,4,PINK);
+  round(c,40,39,4,4,2,0xFFFFD8E8);
  }
  @Override public void render(DrawContext c,int mouseX,int mouseY,float delta){
-  long now=System.nanoTime();dt=Math.min(0.1f,(now-lastFrame)/1_000_000_000f);lastFrame=now;
-  float offset=introOffset();
-  int mx=(int)(mouseX/scale-left),my=(int)(mouseY/scale-top-offset);
-  c.fill(0,0,width,height,0xB5000000);
-  c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);c.getMatrices().translate(left,top+offset);
-  for(int i=8;i>=1;i--)round(c,-i,2-i,W+i*2,H+i*2,23+i,0x05000000);
-  round(c,0,0,W,H,22,0xFF4C303E);round(c,1,1,W-2,H-2,21,0xFF110F13);
-  round(c,13,13,154,454,14,0xFF19151B);
-  blossom(c,43,45);title(c,"SAKURA",64,36,1.12f,WHITE);
-  label(c,"LIVE / PINK",64,53,MUTED);
-  label(c,"MODULE",29,91,0xFF897581);
-  railY=ease(railY,112+tab*54,rate());
-  round(c,19,Math.round(railY+10),3,24,1,PINK);
-  int active=(s.anchor?1:0)+(s.crystal?1:0)+(s.fastPlace?1:0);
-  round(c,29,294,122,28,8,0xFF251B24);
-  round(c,39,304,7,7,3,active>0?PINK:0xFF75636F);
-  label(c,active+" / 3 aktiviert",53,304,MUTED);
-  label(c,"MENÜ-HOTKEY",29,337,0xFF897581);
-  label(c,"TASTENBELEGUNG",29,389,0xFF897581);
-  label(c,"v0.2.1 / 1.21.11",29,448,0xFF897581);
-  label(c,"DEIN SETUP / "+(tab==2?"UTILITY":"COMBAT"),192,27,MUTED);
-  title(c,tab==0?"Anchor":tab==1?"Crystal":"Utility",190,45,2.1f,WHITE);
-  label(c,tab==0?"Neu platzieren oder vorhandenen Anchor auslösen.":tab==1?"Halten. Platzieren. Abbauen.":"Weniger Klicks. Mehr Kontrolle.",192,74,MUTED);
-  round(c,640,48,94,22,7,0xFF2A1A25);label(c,"PINK EDITION",650,55,PINK);
-  c.fill(190,88,736,89,0xFF30232D);
-  if(tab==0){
-   panel(c,190,175,266,226);label(c,"01 / HOTBAR",206,193,MUTED);
-   label(c,"Wähle die Slots deiner Sequenz.",206,211,MUTED);
-   label(c,"Anchor",206,232,WHITE);label(c,"Glowstone",206,286,WHITE);label(c,"Finaler Slot",206,340,WHITE);
-   panel(c,470,175,266,110);label(c,"02 / TIMING",486,193,MUTED);
-   panel(c,470,297,266,104);label(c,"03 / STARTEN & ABBRECHEN",486,315,MUTED);
-  }else{
-   panel(c,190,175,266,226);label(c,tab==1?"01 / TIMING":"01 / PLATZIEREN",206,193,MUTED);
-   label(c,tab==1?"Getrennte Pausen für beide Schritte.":"Abstand zwischen Benutzungen.",206,211,MUTED);
-   panel(c,470,175,266,226);label(c,"02 / HOTKEY & VERHALTEN",486,193,MUTED);
-   if(tab==1){
-    label(c,"SO FUNKTIONIERT'S",486,296,MUTED);
-    label(c,"1  Kristalle in die Haupthand",486,319,WHITE);
-    label(c,"2  Auf Obsidian / Bedrock zielen",486,339,WHITE);
-    label(c,"3  Rechte Maustaste halten",486,359,WHITE);
-    label(c,"Loslassen stoppt den Assistenten.",486,381,MUTED);
+  long now=System.nanoTime();dt=Math.min(.1f,(now-lastFrame)/1_000_000_000f);lastFrame=now;
+  float off=offset();int mx=(int)(mouseX/scale-left),my=(int)(mouseY/scale-top-off);
+  c.fill(0,0,width,height,0xB0000000);
+  c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);c.getMatrices().translate(left,top+off);
+  for(int i=6;i>=1;i--)round(c,-i,2-i,W+2*i,H+2*i,20+i,0x06000000);
+  round(c,0,0,W,H,20,0xFF42323D);round(c,1,1,W-2,H-2,19,0xFF100F14);
+  round(c,12,12,174,556,13,0xFF16131B);
+  flower(c);title(c,"SAKURA",63,29,1.3f);label(c,"LIVE  /  PINK",64,48,MUTED);
+  label(c,"MODULE",29,82,0xFF7C7485);
+  rail=ease(rail,104+tab*43);round(c,18,Math.round(rail+9),2,18,1,PINK);
+  int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
+  label(c,active+" / 6 aktiv",29,429,MUTED);
+  label(c,"MENÜ-HOTKEY",29,452,0xFF7C7485);
+  label(c,"0.3.0  /  FABRIC 1.21.11",29,551,0xFF7C7485);
+  label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
+  title(c,NAMES[tab],210,39,2.25f);
+  label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);
+  if(tab!=6){card(c,210,214,418,304);card(c,642,214,254,304);}
+  else{
+   card(c,210,214,418,304);card(c,642,214,254,304);
+   label(c,"DEIN LOOK",230,232,MUTED);
+   label(c,"Schrift, Bewegung und Bedienung.",230,461,MUTED);
+  }
+  if(tab!=6){
+   label(c,section==0?"ZEITEN IN MILLISEKUNDEN":tab<4&&section==1?"DEINE HOTBAR":"HOTKEY & VERHALTEN",230,232,MUTED);
+   if(tab<4&&section==1){
+    label(c,"Anchor",230,257,INK);label(c,"Glowstone",230,329,INK);label(c,"Finaler Slot · kein Totem erforderlich",230,401,INK);
+   }else if(section>0){
+    String note=conflict(SakuraClient.keyFor(tab));
+    small(c,note,230,305,note.startsWith("Konflikt")?0xFFFFB490:MUTED,378);
+    if(tab==4){
+     label(c,"Startet direkt beim Halten.",230,354,INK);
+     label(c,"Kein manueller erster Crystal-Schlag nötig.",230,381,MUTED);
+     label(c,"Loslassen oder Item-Wechsel setzt zurück.",230,408,MUTED);
+    }
+    if(tab==5)label(c,"Wirkt nur auf Block-Items.",230,354,MUTED);
+   }
+   if(tab==5&&section==0){
+    label(c,"Minecraft verarbeitet Fast Place in Spiel-Ticks.",230,420,MUTED);
+    label(c,"Effektiv: "+((s.placeDelayMs+49)/50)*50+" ms bei 20 TPS",230,447,INK);
    }
   }
-  String hoverHint="";
+  label(c,"ABLAUF",660,233,MUTED);
+  String[][] steps={
+   {"Ziel festhalten","Anchor setzen / erkennen","Laden bestätigen","Auslösen"},
+   {"Hotkey bewusst halten","Exaktes Ziel beibehalten","Eigene langsamere Pausen","Loslassen bricht ab"},
+   {"Anchor setzen / erkennen","Mit Glowstone laden","Glowstone auf deiner Seite","Mit Deckung auslösen"},
+   {"Ersten Anchor auslösen","Entfernung abwarten","Gleiche Position neu setzen","Zweiten Anchor auslösen"},
+   {"Kristalle in die Haupthand","Rechte Maustaste halten","Platzieren oder Crystal finden","Abbauen & erneut platzieren"},
+   {"Block in die Hand nehmen","Benutzen-Taste halten","Anchor bei Bedarf ausnehmen","Eigene Platzierpause"},
+   {"Klare Schrift wählen","Bewegung nach Wunsch","Menü-Hotkey zuweisen","Änderungen speichern"}
+  };
+  c.fill(668,274,669,399,0xFF45303E);
+  for(int i=0;i<4;i++){
+   round(c,664,267+i*40,9,9,4,i==0?PINK:0xFF605064);
+   small(c,steps[tab][i],684,265+i*40,INK,194);
+  }
+  c.fill(660,431,878,432,BORDER);
+  label(c,tab==2?"DECKUNG, KEIN SCHADENSSCHILD":"TIMING-HINWEIS",660,448,MUTED);
+  small(c,tab==2?"Deckung ist keine Überlebensgarantie.":"Millisekunden sind Mindestpausen.",660,469,MUTED,218);
+  small(c,tab==2?"Platz muss frei und erreichbar sein.":"FPS & Server beeinflussen den Ablauf.",660,490,MUTED,218);
+  String hover="";
   for(Control p:controls){
    var w=p.widget;int x=w.getX(),y=w.getY(),bw=w.getWidth(),bh=w.getHeight();
    boolean over=w.isMouseOver(mx,my)||w.isFocused();
-   p.tween[0]=ease(p.tween[0],over?1:0,rate());p.tween[1]=ease(p.tween[1],p.selected.getAsBoolean()?1:0,rate());
-   float hover=p.tween[0],on=p.tween[1];
-   String text=p.title.get(),detail=p.detail.get();w.setMessage(Text.literal(text+". "+detail));
-   if(over)hoverHint=detail;
-   if(p.skin==Skin.HERO){
-    round(c,x,y,bw,bh,13,blend(BORDER,0xFFAF456E,on));
-    round(c,x+1,y+1,bw-2,bh-2,12,blend(0xFF201920,0xFF34202C,on));
-    label(c,text,x+16,y+14,WHITE);small(c,detail,x+16,y+34,MUTED,420);
-    label(c,p.selected.getAsBoolean()?"AN":"AUS",x+bw-101,y+25,p.selected.getAsBoolean()?PINK:MUTED);
-    switchTrack(c,x+bw-60,y+19,on);
-   }else if(p.skin==Skin.NAV){
-    round(c,x,y,bw,bh,9,blend(blend(0xFF19151B,0xFF2A2029,hover),0xFF3A2030,on));
-    label(c,"0"+(p.index+1),x+9,y+10,blend(MUTED,PINK,on));
-    label(c,text,x+31,y+9,blend(MUTED,WHITE,on));
-    small(c,detail,x+31,y+26,MUTED,bw-36);
+   p.tween[0]=ease(p.tween[0],over?1:0);p.tween[1]=ease(p.tween[1],p.selected.getAsBoolean()?1:0);
+   float h=p.tween[0],on=p.tween[1];String text=p.text.get(),detail=p.detail.get();
+   w.setMessage(Text.literal(text+". "+detail));if(over)hover=detail;
+   if(p.skin==Skin.NAV){
+    round(c,x,y,bw,bh,7,mix(mix(0xFF16131B,0xFF211C27,h),0xFF30202D,on));
+    small(c,text,x+13,y+7,mix(MUTED,INK,on),bw-32);
+    if(p.index<6){round(c,x+bw-17,y+16,4,4,2,SakuraClient.enabled(p.index)?PINK:0xFF65596B);}
+   }else if(p.skin==Skin.TAB){
+    round(c,x,y,bw,bh,7,mix(0xFF151219,0xFF30202D,on));
+    label(c,text,x+(bw-tw(text))/2,y+7,on>.5?PINK:MUTED);
+   }else if(p.skin==Skin.HERO){
+    round(c,x,y,bw,bh,11,mix(0xFF201B25,0xFF29202B,on));
+    round(c,x+1,y+12,2,bh-24,1,mix(0xFF645A6A,PINK,on));
+    label(c,text,x+16,y+11,INK);small(c,detail,x+16,y+33,MUTED,bw-97);
+    switchAt(c,x+bw-52,y+18,on);
    }else if(p.skin==Skin.SWITCH){
-    round(c,x,y,bw,bh,9,blend(0xFF261E26,0xFF342431,hover));
-    small(c,text,x+10,y+11,WHITE,bw-68);small(c,detail,x+10,y+34,MUTED,bw-18);
-    switchTrack(c,x+bw-54,y+8,on);
+    round(c,x,y,bw,bh,8,mix(0xFF24202A,0xFF332837,h));
+    small(c,text,x+12,y+13,INK,bw-72);switchAt(c,x+bw-47,y+12,on);
    }else if(p.skin==Skin.SLOT){
-    round(c,x,y,bw,bh,6,blend(blend(0xFF2A212B,0xFF463140,hover),0xFFA83D69,on));
-    label(c,text,x+3,y+3,WHITE);
+    round(c,x,y,bw,bh,7,mix(mix(0xFF27212E,0xFF443247,h),0xFF9F3F6B,on));
+    label(c,text,x+5,y+3,INK);
     if(client.player!=null){
-     var item=client.player.getInventory().getStack(p.index-1);
-     if(!item.isEmpty()){
-      c.getMatrices().pushMatrix();c.getMatrices().translate(x+7,y+13);c.getMatrices().scale(0.7f,0.7f);
-      c.drawItem(item,0,0);c.getMatrices().popMatrix();
-     }
+     var stack=client.player.getInventory().getStack(p.index-1);
+     if(!stack.isEmpty()){c.getMatrices().pushMatrix();c.getMatrices().translate(x+16,y+16);c.getMatrices().scale(.8f,.8f);c.drawItem(stack,0,0);c.getMatrices().popMatrix();}
     }
    }else{
-    round(c,x,y,bw,bh,8,blend(0xFF35232F,0xFF583248,hover));
-    String fitted=bw<40?text:fit(text,bw-18);
-    label(c,fitted,x+(bw-textRenderer.getWidth(fitted))/2,y+(bh-8)/2,p.skin==Skin.KEY?PINK:WHITE);
+    round(c,x,y,bw,bh,7,mix(0xFF2A2231,0xFF46304B,h));
+    String shown=bw<40?text:fit(text,bw-18);
+    label(c,shown,x+(bw-tw(shown))/2,y+(bh-11)/2,p.skin==Skin.KEY?PINK:INK);
    }
-   if(w.isFocused())c.drawStrokedRectangle(x-2,y-2,bw+4,bh+4,0xFFFFB7D3);
+   if(w.isFocused())c.drawStrokedRectangle(x-2,y-2,bw+4,bh+4,0xFFFFB4D0);
   }
   for(var slider:sliders){
    slider.render(c,mx,my,delta);
-   if(slider.isMouseOver(mx,my)||slider.isFocused())hoverHint="Ziehen oder mit Tab auswählen und Pfeiltasten benutzen.";
+   if(slider.isMouseOver(mx,my)||slider.isFocused())hover="Ziehen · Pfeiltasten: 1 ms · Shift + Pfeil: 10 ms · Zahl direkt eingeben";
   }
-  int keyY=tab==0?380:270;
-  small(c,conflict(moduleKey()),486,keyY,moduleKey().isUnbound()?0xFFE8AE72:conflict(moduleKey()).startsWith("Konflikt")?0xFFFFAA8B:MUTED,234);
-  if(tab==0&&s.anchorSlot==s.glowSlot)small(c,"Anchor und Glowstone brauchen eigene Slots.",206,385,0xFFFFAA8B,234);
-  float page=s.reduceMotion?1:Math.min(1,(now-pageOpened)/180_000_000f);
-  if(page<1)round(c,188,173,550,230,14,((int)(180*(1-page))<<24)|0x00110F13);
-  round(c,190,417,546,42,11,0xFF211A22);
-  round(c,203,430,6,6,3,now<noticeUntil?PINK:0xFFE8AE72);
-  small(c,now<noticeUntil?notice:"Menü geöffnet · Makros pausieren",217,426,WHITE,501);
-  small(c,hoverHint.isEmpty()?"Esc schließt das Menü · Änderungen werden gespeichert.":hoverHint,217,443,MUTED,501);
+  for(var f:fields){
+   var w=f.widget;
+   if(!w.isFocused()&&!w.getText().equals(Integer.toString(f.get.getAsInt())))w.setText(Integer.toString(f.get.getAsInt()));
+   boolean valid=!w.getText().isEmpty()&&Integer.parseInt(w.getText())>=f.min&&Integer.parseInt(w.getText())<=f.max;
+   round(c,w.getX()-7,w.getY()-3,85,26,6,valid?0xFF342535:0xFF58303E);
+   label(c,"ms",w.getX()+59,w.getY()+4,MUTED);w.render(c,mx,my,delta);
+   if(w.isFocused())hover="Erlaubt: "+f.min+" bis "+f.max+" ms. Ungültige Werte werden nicht übernommen.";
+  }
+  float reveal=s.reduceMotion?1:Math.min(1,(now-pageOpened)/150_000_000f);
+  if(reveal<1)round(c,208,212,690,308,12,((int)(180*(1-reveal))<<24)|0x00100F14);
+  round(c,210,533,686,25,7,0xFF1E1822);
+  round(c,221,542,5,5,2,0xFFE9AD7B);
+  label(c,"Im Menü pausiert",234,538,MUTED);
+  String status=now<noticeUntil?notice:"Einstellungen automatisch gespeichert";
+  small(c,status,894-tw(status),538,now<noticeUntil?PINK:MUTED,420);
+  small(c,hover.isEmpty()?SakuraClient.lastStatus:hover,212,563,MUTED,684);
   if(capture!=null){
-   round(c,181,92,564,316,15,0xF5110F13);
-   panel(c,238,183,450,158);blossom(c,269,213);
-   title(c,"Hotkey zuweisen",291,205,1.3f,WHITE);
-   small(c,Text.translatable(capture.getId()).getString(),260,239,MUTED,405);
-   label(c,"Jetzt eine Taste oder Maustaste drücken.",260,265,WHITE);
-   label(c,"Esc: abbrechen   /   Entf: Belegung entfernen",260,296,MUTED);
-   label(c,"Menü und Makros bleiben währenddessen pausiert.",260,317,MUTED);
+   round(c,199,91,707,432,14,0xF8100F14);card(c,279,229,526,150);
+   title(c,"Hotkey zuweisen",301,248,1.7f);
+   small(c,Text.translatable(capture.getId()).getString(),301,284,MUTED,480);
+   label(c,"Taste oder Maustaste drücken.",301,318,INK);
+   label(c,"Esc: abbrechen     Entf / Backspace: entfernen",301,349,MUTED);
   }
   c.getMatrices().popMatrix();
  }
- private final class DelaySlider extends SliderWidget {
-  private final String name;
-  private final IntSupplier get;
-  private final IntConsumer set;
-  private final int min,max;
-  private float visual;
-  DelaySlider(int x,int y,int w,String name,IntSupplier get,IntConsumer set,int min,int max){
-   super(x,y,w,61,Text.literal(name),(get.getAsInt()-min)/(double)(max-min));
+ private final class MsSlider extends SliderWidget {
+  private final String name;private final IntSupplier get;private final IntConsumer set;private final int min,max;private float visual;
+  MsSlider(int x,int y,int w,String name,IntSupplier get,IntConsumer set,int min,int max){
+   super(x,y+22,w,33,Text.literal(name),(get.getAsInt()-min)/(double)(max-min));
    this.name=name;this.get=get;this.set=set;this.min=min;this.max=max;visual=(float)value;updateMessage();
   }
-  @Override protected void updateMessage(){
-   if(get!=null)setMessage(Text.literal(name+": "+get.getAsInt()+" Ticks, "+get.getAsInt()*50+" Millisekunden"));
-  }
+  @Override protected void updateMessage(){if(get!=null)setMessage(Text.literal(name+": "+get.getAsInt()+" Millisekunden"));}
   @Override protected void applyValue(){
-   int next=min+(int)Math.round(value*(max-min));
-   if(get.getAsInt()!=next){set.accept(next);dirty=true;}
-   updateMessage();
+   int n=min+(int)Math.round(value*(max-min));if(n!=get.getAsInt()){set.accept(n);dirty=true;changedAt=System.nanoTime();}updateMessage();
   }
   @Override public void onRelease(Click click){super.onRelease(click);flush();}
   @Override public boolean keyPressed(KeyInput input){
    if(input.key()==GLFW.GLFW_KEY_LEFT||input.key()==GLFW.GLFW_KEY_RIGHT){
-    int next=Math.max(min,Math.min(max,get.getAsInt()+(input.key()==GLFW.GLFW_KEY_RIGHT?1:-1)));
-    if(next!=get.getAsInt()){set.accept(next);value=(next-min)/(double)(max-min);dirty=true;updateMessage();flush();}
-    return true;
+    int n=SakuraSettings.cap(get.getAsInt()+(input.key()==GLFW.GLFW_KEY_RIGHT?1:-1)*(input.hasShift()?10:1),min,max);
+    set.accept(n);value=(n-min)/(double)(max-min);dirty=true;updateMessage();flush();return true;
    }
    return super.keyPressed(input);
   }
   @Override public void renderWidget(DrawContext c,int mx,int my,float delta){
-   int x=getX(),y=getY(),w=getWidth(),n=get.getAsInt();
-   visual=ease(visual,(n-min)/(float)(max-min),rate());
-   label(c,name,x,y,WHITE);
-   String valueText=n+" t  /  "+n*50+" ms";
-   label(c,valueText,x+w-textRenderer.getWidth(valueText),y,PINK);
-   round(c,x+4,y+25,w-8,5,2,0xFF43303F);
-   round(c,x+4,y+25,Math.max(1,Math.round((w-8)*visual)),5,2,PINK);
-   for(int i=0;i<=max-min;i++){
-    int px=x+4+Math.round((w-8)*i/(float)(max-min));
-    round(c,px,y+36,1,2,0,0xFF6C4B5B);
-   }
-   int knob=x+4+Math.round((w-8)*visual);
-   round(c,knob-8,y+19,16,17,8,0x335C2840);
-   round(c,knob-5,y+22,10,11,5,WHITE);
-   label(c,Integer.toString(min),x,y+48,MUTED);label(c,Integer.toString(max),x+w-textRenderer.getWidth(Integer.toString(max)),y+48,MUTED);
-   if(isFocused())c.drawStrokedRectangle(x-3,y-4,w+6,66,0xFFFFB7D3);
+   int x=getX(),y=getY()-22,w=getWidth();value=(get.getAsInt()-min)/(double)(max-min);
+   visual=ease(visual,(float)value);small(c,name,x,y,INK,w-99);
+   round(c,x+4,y+30,w-8,3,1,0xFF49374B);round(c,x+4,y+30,Math.max(1,Math.round((w-8)*visual)),3,1,PINK);
+   int knob=x+4+Math.round((w-8)*visual);round(c,knob-4,y+27,8,9,4,INK);
+   label(c,Integer.toString(min),x,y+43,MUTED);String end=Integer.toString(max);label(c,end,x+w-tw(end),y+43,MUTED);
+   if(isFocused())c.drawStrokedRectangle(x-3,y-4,w+6,60,0xFFFFB4D0);
   }
  }
 }
