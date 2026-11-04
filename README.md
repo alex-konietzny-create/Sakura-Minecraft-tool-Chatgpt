@@ -1,26 +1,28 @@
-# 🌸 Sakura Live — Pink Fabric Client
+# Sakura Live — Pink Fabric client
 
-**Minecraft Java 1.21.11 · Fabric Loader · Java 21**
+Minecraft Java **1.21.11**, Fabric Loader and Fabric API, Java 21.
 
-Only a Fabric mod. No desktop EXE or process connector required.
+Download the artifact **SakuraLive-Pink-Fabric-1.21.11** from the latest successful [GitHub Actions build](https://github.com/alex-konietzny-create/Sakura-Minecraft-tool-Chatgpt/actions).
+Extract the ZIP, put the contained JAR in your Minecraft instance's mods folder, and remove older Sakura JARs.
 
-## Install
+## Controls
+- Right Shift: open the rounded pink/black workspace, with Anchor, Crystal and Utility tabs.
+- G: run / cancel anchor sequence (enable the module first).
+- H: toggle crystal assist.
+- J: toggle fast place.
 
-1. Open [GitHub Actions](../../actions/workflows/build.yml) and choose the latest **green** run.
-2. Download artifact **SakuraLive-Pink-Fabric-1.21.11**, unzip it and install `SakuraLive-Fabric-0.1.0.jar` into Minecraft's `mods` folder.
-3. Use **Minecraft 1.21.11**, Fabric Loader and Fabric API.
-4. Press **Right Shift** for the pink, rounded in-game menu; **G** for Anchor and **H** for Crystal.
+Use **Edit all hotkeys** in the workspace, or Minecraft Options → Controls → Key Binds → Sakura Live. Keyboard and mouse bindings, conflict indicators and reset use Minecraft's native controls. Bindings persist in options.txt; module settings persist in config/sakura-live.json.
 
-## Features
+## Crystal
+Requires crystals in the **main hand** and the physical **right mouse button held**.
+Aim at obsidian/bedrock to place; the assist waits for the crystal entity before breaking it. Existing crystals can be broken by aiming at them. Placement and break timings are separately adjustable, 1–20 ticks. No inventory autoswitch.
+Release the button, change the held item, open a menu, lose window focus, die or leave the world to stop. Reach, visibility, occupancy and timeout checks limit stale actions. Vanilla item use is suppressed while the assist controls crystals.
 
-- Pink + near-black native Minecraft interface with rounded corners and clickable pill controls.
-- Responsive layout for smaller GUI sizes (automatic scaling).
-- Enable/disable anchor macro, crystal macro and FastPlace.
-- Choose inventory slots, action delay and FastPlace delay.
-- Save changes to `config/sakura-live.json` automatically.
-- Final slot for Anchor macro (Totem slot).
-- In-game GUI; no external EXE and no network connection.
+## Anchor
+Enable the module, configure anchor, glowstone and final hotbar slots, and set the step delay (1–20 ticks).
+Aim at the support, press the action hotkey, then keep aiming at the newly placed anchor for charge/detonation. Press the hotkey again to cancel.
+Manual slot changes and invalid targets cancel the sequence. Vanilla item use is suppressed during the sequence. Glowstone in the offhand cancels detonation. A completed sequence selects the configured final slot.
 
-**Important:** The macro logic is an experimental implementation, not a clone of a commercial client. CI compilation confirms code compiles but cannot confirm that every PvP interaction works on a particular server. Test safely in a private practice world.
-
-The repository still contains old unused `Desktop/` sources as historical prototype files, but the workflow builds **only** the Fabric mod.
+## Verification
+CI builds and remaps the Fabric JAR with Java 21. Gameplay, appearance in a running client and compatibility with other mods require manual verification. No gameplay test is claimed.
+See [Fabric/VERIFY.md](Fabric/VERIFY.md) for the manual checklist and state-handling limits.

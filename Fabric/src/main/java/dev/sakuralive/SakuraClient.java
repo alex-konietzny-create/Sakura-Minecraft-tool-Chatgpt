@@ -72,9 +72,12 @@ public final class SakuraClient implements ClientModInitializer {
   originalSlot=expectedSlot=-1;anchorPhase=waitTicks=crystalWait=pendingAge=0;
   anchorTarget=null;placedAnchor=null;crystalBase=null;
  }
+ public static boolean ownsItemUse(MinecraftClient mc){
+  return crystalActive(mc)||(anchorPhase!=0&&mc.player!=null&&mc.world==lastWorld&&mc.currentScreen==null&&mc.isWindowFocused());
+ }
  public static boolean crystalActive(MinecraftClient mc){
   return settings.crystal&&mc.player!=null&&mc.world!=null&&mc.currentScreen==null&&mc.isWindowFocused()
-    &&mc.player.isAlive()&&!mc.player.isSpectator()&&anchorPhase==0
+    &&mc.player.isAlive()&&!mc.player.isSpectator()&&!mc.player.isUsingItem()&&anchorPhase==0
     &&mc.player.getMainHandStack().isOf(Items.END_CRYSTAL)
     &&GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),GLFW.GLFW_MOUSE_BUTTON_RIGHT)==GLFW.GLFW_PRESS;
  }
@@ -136,6 +139,7 @@ public final class SakuraClient implements ClientModInitializer {
    }
    target=current;
   }
+  if(anchorPhase==3 && mc.player.getOffHandStack().isOf(Items.GLOWSTONE)){reset(mc);return;}
   if(anchorPhase==3 && mc.world.getBlockState(target.getBlockPos()).get(net.minecraft.block.RespawnAnchorBlock.CHARGES)==0)return;
   inventory.setSelectedSlot(slot);expectedSlot=slot;
   if(!mc.interactionManager.interactBlock(mc.player,Hand.MAIN_HAND,target).isAccepted()){reset(mc);return;}

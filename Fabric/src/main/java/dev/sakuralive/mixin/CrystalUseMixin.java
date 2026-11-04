@@ -10,6 +10,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class CrystalUseMixin {
  @Inject(method="doItemUse",at=@At("HEAD"),cancellable=true)
  private void sakura$controlledCrystalUse(CallbackInfo ci){
-  if(SakuraClient.crystalActive((MinecraftClient)(Object)this))ci.cancel();
+  if(SakuraClient.ownsItemUse((MinecraftClient)(Object)this))ci.cancel();
  }
 }
