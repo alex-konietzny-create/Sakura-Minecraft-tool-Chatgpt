@@ -14,7 +14,9 @@ import java.io.File;
 final class SakuraUiSmoke {
  private static final String[] NAMES={"anchor","legit","safe","double","crystal","fastplace","design","anchor-hotbar","anchor-controls"};
  private static int stage=-1,wait=60;
- private static boolean tested;
+ private static boolean tested,nativeChecked;
+ private static WindowsSystemInput nativeSmoke;
+ private static int nativeWait;
  private static void check(boolean value,String why){if(!value)throw new IllegalStateException("UI assertion: "+why);}
  private static Click pointer(SakuraScreen screen,double x,double y,int button){
   double scale=Math.max(.01,Math.min(1.2,Math.min((screen.width-20.0)/920,(screen.height-20.0)/580)));
@@ -81,9 +83,21 @@ final class SakuraUiSmoke {
  private static SakuraScreen screenshotPage(int index){
   return index<7?new SakuraScreen(index):new SakuraScreen(0,index==7?1:2);
  }
+ private static WindowsSystemInput newNativeSmoke(MinecraftClient mc){try{return new WindowsSystemInput(mc);}catch(Exception e){throw new IllegalStateException(e);}}
  static void install(){
   ClientTickEvents.END_CLIENT_TICK.register(mc->{
    if(mc.getOverlay()!=null||wait-->0)return;
+   if(!nativeChecked&&com.sun.jna.Platform.isWindows()){
+    if(nativeSmoke==null){nativeSmoke=newNativeSmoke(mc);nativeWait=0;wait=10;return;}
+    if(!nativeSmoke.available()){
+     check(++nativeWait<10,"Windows native hooks: "+nativeSmoke.status());wait=10;return;
+    }
+    if(!nativeSmoke.foreground()){
+     check(!nativeSmoke.tap(mc.options.hotbarKeys[0],System.nanoTime(),25),"native foreground guard");
+     System.out.println("[Sakura UI smoke] PASS: real Windows hook setup and background input refusal; no system key sent");
+    }
+    nativeSmoke.close();nativeSmoke=null;nativeChecked=true;
+   }
    if(stage==-1){
     for(int i=0;i<6;i++)if(!SakuraClient.enabled(i))SakuraClient.toggle(i);
     mc.setScreen(screenshotPage(0));stage=0;wait=40;return;

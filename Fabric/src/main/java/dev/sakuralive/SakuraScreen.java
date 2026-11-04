@@ -50,7 +50,8 @@ public final class SakuraScreen extends Screen {
   if(tab==6){
    toggle(230,250,378,"Weiche Animationen",()->!s.reduceMotion,()->s.reduceMotion=!s.reduceMotion);
    toggle(230,320,378,"Klare Schrift",()->s.smoothFont,()->s.smoothFont=!s.smoothFont);
-   button(230,404,378,38,Skin.KEY,()->"Menü · "+keyName(SakuraClient.menuKey),()->"Hotkey direkt ändern",()->false,0,()->capture=SakuraClient.menuKey);
+   slider(230,381,378,"System-Tastendauer",()->s.systemPulseMs,n->s.systemPulseMs=n,10,100);
+   button(230,460,378,38,Skin.KEY,()->"Menü · "+keyName(SakuraClient.menuKey),()->"Hotkey direkt ändern",()->false,0,()->capture=SakuraClient.menuKey);
    return;
   }
   button(210,96,686,56,Skin.HERO,()->NAMES[tab],this::hint,()->SakuraClient.enabled(tab),0,()->{SakuraClient.toggle(tab);changed();});
@@ -82,8 +83,7 @@ public final class SakuraScreen extends Screen {
   }else{
    button(230,255,378,36,Skin.KEY,()->keyName(SakuraClient.keyFor(tab)),()->"Klicken und Taste oder Maustaste drücken",()->false,0,()->capture=SakuraClient.keyFor(tab));
    if(tab<4){
-    toggle(230,333,378,"Exaktes Anvisieren",()->o.requireAim,()->o.requireAim=!o.requireAim);
-    toggle(230,391,378,"Hotkey gedrückt halten",()->o.holdToRun,()->o.holdToRun=!o.holdToRun);
+    toggle(230,333,378,"Hotkey gedrückt halten",()->o.holdToRun,()->o.holdToRun=!o.holdToRun);
     slider(230,451,378,"Bestätigung: Zeitlimit",()->o.timeoutMs,n->o.timeoutMs=n,250,10000);
    }
   }
@@ -126,7 +126,7 @@ public final class SakuraScreen extends Screen {
   if(!SakuraClient.enabled(tab))return "Deaktiviert · hier einschalten";
   return switch(tab){
    case 1->"Langsamere Abläufe · Haltemodus separat einstellbar";
-   case 2->"Glowstone vor dem Auslösen als Deckung · ohne Totem-Prüfung";
+   case 2->"Deckung selbst anvisieren · Systemklicks · ohne Totem-Prüfung";
    case 3->"Zwei Anchor auf exakt derselben Blockposition";
    case 4->"Kristalle in der Haupthand + rechte Maustaste halten";
    case 5->"Block in der Hand + Benutzen-Taste halten";
@@ -216,21 +216,21 @@ public final class SakuraScreen extends Screen {
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF7C7485);
-  label(c,"0.3.1  /  FABRIC 1.21.11",29,551,0xFF7C7485);
+  label(c,"0.4.0  /  FABRIC 1.21.11",29,551,0xFF7C7485);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   title(c,NAMES[tab],210,39,2.25f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);
   if(tab==6){
    round(c,210,96,686,56,11,0xFF241B28);
    label(c,"DEIN SAKURA",226,107,PINK);
-   label(c,"Ruhige Flächen. Eigene Schrift. Bewegung nach Wunsch.",226,130,MUTED);
+   label(c,"Echte Systemeingaben · nur im Minecraft-Fenster",226,130,MUTED);
    label(c,"LOOK & FEEL",212,178,MUTED);
   }
   if(tab!=6){card(c,210,214,418,304);card(c,642,214,254,304);}
   else{
    card(c,210,214,418,304);card(c,642,214,254,304);
    label(c,"DEIN LOOK",230,232,MUTED);
-   label(c,"Schrift, Bewegung und Bedienung.",230,461,MUTED);
+
   }
   if(tab!=6){
    label(c,section==0?"ZEITEN IN MILLISEKUNDEN":tab<4&&section==1?"DEINE HOTBAR":"HOTKEY & VERHALTEN",230,232,MUTED);
@@ -241,25 +241,29 @@ public final class SakuraScreen extends Screen {
     small(c,note,230,305,note.startsWith("Konflikt")?0xFFFFB490:MUTED,378);
     if(tab==4){
      label(c,"Startet direkt beim Halten.",230,354,INK);
-     label(c,"Kein manueller erster Crystal-Schlag nötig.",230,381,MUTED);
+     label(c,"Platzieren und Abbauen mit Systemklicks.",230,381,MUTED);
      label(c,"Loslassen oder Item-Wechsel setzt zurück.",230,408,MUTED);
     }
     if(tab==5)label(c,"Wirkt nur auf Block-Items.",230,354,MUTED);
    }
+   if(tab<4&&section==2){
+    label(c,"Systemeingaben verwenden dein Fadenkreuz.",230,395,MUTED);
+    label(c,"Keine automatische Ziel-Drehung.",230,419,MUTED);
+   }
    if(tab==5&&section==0){
-    label(c,"Minecraft verarbeitet Fast Place in Spiel-Ticks.",230,420,MUTED);
-    label(c,"Effektiv: "+((s.placeDelayMs+49)/50)*50+" ms bei 20 TPS",230,447,INK);
+    label(c,"Systemklicks · Vanilla-Cooldown bleibt erhalten.",230,420,MUTED);
+    label(c,"Klickpause: "+s.placeDelayMs+" ms",230,447,INK);
    }
   }
   label(c,"ABLAUF",660,233,MUTED);
   String[][] steps={
    {"Ziel festhalten","Anchor setzen / erkennen","Laden bestätigen","Auslösen"},
    {"Hotkey bewusst halten","Exaktes Ziel beibehalten","Eigene langsamere Pausen","Loslassen bricht ab"},
-   {"Anchor setzen / erkennen","Mit Glowstone laden","Glowstone auf deiner Seite","Mit Deckung auslösen"},
+   {"Anchor setzen / erkennen","Mit Glowstone laden","Deckungsfläche anvisieren","Anchor erneut anvisieren"},
    {"Ersten Anchor auslösen","Entfernung abwarten","Gleiche Position neu setzen","Zweiten Anchor auslösen"},
    {"Kristalle in die Haupthand","Rechte Maustaste halten","Platzieren oder Crystal finden","Abbauen & erneut platzieren"},
    {"Block in die Hand nehmen","Benutzen-Taste halten","Anchor bei Bedarf ausnehmen","Eigene Platzierpause"},
-   {"Klare Schrift wählen","Bewegung nach Wunsch","Menü-Hotkey zuweisen","Änderungen speichern"}
+   {"Echte Tasten und Mausklicks","Nur Minecraft im Fokus","Ziele selbst anvisieren","Vanilla verarbeitet Eingaben"}
   };
   c.fill(668,274,669,399,0xFF45303E);
   for(int i=0;i<4;i++){

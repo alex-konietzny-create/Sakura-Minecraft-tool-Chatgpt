@@ -13,11 +13,12 @@ public final class SakuraSettings {
  public AnchorOptions legitOptions=AnchorOptions.legit();
  public AnchorOptions safeOptions=new AnchorOptions();
  public AnchorOptions doubleOptions=new AnchorOptions();
+ public int systemPulseMs=25;
  public int crystalPlaceMs=150,crystalBreakMs=150,crystalTimeoutMs=2000,placeDelayMs=0;
  public static final class AnchorOptions {
   public int anchorSlot=1,glowSlot=2,finalSlot=9;
   public int placeMs=150,chargeMs=150,switchMs=35,coverMs=120,repeatMs=200,timeoutMs=2000;
-  public boolean requireAim=true,holdToRun=false;
+  public boolean holdToRun=false;
   static AnchorOptions legit(){
    var o=new AnchorOptions();o.placeMs=280;o.chargeMs=280;o.switchMs=80;o.holdToRun=true;return o;
   }
@@ -51,6 +52,7 @@ public final class SakuraSettings {
  }
  private static int old(JsonObject raw,String key,int fallback){return raw.has(key)?raw.get(key).getAsInt():fallback;}
  public void clamp(){
+  systemPulseMs=cap(systemPulseMs,10,100);
   if(anchorOptions==null)anchorOptions=new AnchorOptions();if(legitOptions==null)legitOptions=AnchorOptions.legit();
   if(safeOptions==null)safeOptions=new AnchorOptions();if(doubleOptions==null)doubleOptions=new AnchorOptions();
   anchorOptions.clamp();legitOptions.clamp();safeOptions.clamp();doubleOptions.clamp();
