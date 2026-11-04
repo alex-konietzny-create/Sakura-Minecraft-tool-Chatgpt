@@ -173,7 +173,14 @@ public final class SakuraScreen extends Screen {
    round(c,x+210,row-1,bw,23,5,0xFF1A2231);c.drawStrokedRectangle(x+211,row, bw-2,21,0xFF252F41);
    if(!description[1].isEmpty())text(c,description[1],x+277,row+4,0xFF626D83);
    if(!w.isFocused()&&!w.getText().equals(Integer.toString(field.get.getAsInt())))w.setText(Integer.toString(field.get.getAsInt()));
-   w.render(c,mx,my,delta);
+   String value=w.getText();
+   boolean valid=!value.isEmpty()&&Integer.parseInt(value)>=field.min&&Integer.parseInt(value)<=field.max;
+   if(w.isFocused())c.drawStrokedRectangle(x+210,row-1,bw,23,valid?accent():0xFFFF8C91);
+   text(c,value,w.getX()+1,w.getY()+2,valid?INK:0xFFFF8C91);
+   if(w.isFocused()&&(now/500_000_000L)%2==0){
+    int cursor=Math.max(0,Math.min(value.length(),w.getCursor()));
+    int caret=w.getX()+1+tw(value.substring(0,cursor));c.fill(caret,w.getY()+1,caret+1,w.getY()+14,INK);
+   }
   }
   String hint="";
   for(var p:controls){
