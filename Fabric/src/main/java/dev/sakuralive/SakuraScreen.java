@@ -2,122 +2,113 @@ package dev.sakuralive;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.option.KeybindsScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
+import java.util.function.*;
 
-/** Sakura Live in-game control panel. All colours are pink or neutral; no purple. */
 public final class SakuraScreen extends Screen {
- private static final int BACK = 0xFF0D0A0C;
- private static final int CARD = 0xFF1C1419;
- private static final int CARD_HOVER = 0xFF2C1923;
- private static final int PINK = 0xFFFF4D9B;
- private static final int PINK_LIGHT = 0xFFFFA4CD;
- private static final int TEXT = 0xFFFFEAF2;
- private static final int MUTED = 0xFFB99DA9;
- private static final int OFF = 0xFF3C2A32;
- private final List<Pill> pills = new ArrayList<>();
- private int left, top;
- private float scale = 1f;
- private final SakuraSettings s = SakuraClient.settings;
- private record Pill(int x,int y,int w,int h,Supplier<String> label,boolean active) {}
+ private static final int PINK=0xFFFF5098, INK=0xFFFFEAF2, MUTED=0xFFAB939E;
+ private final SakuraSettings s=SakuraClient.settings;
+ private final List<Control> controls=new ArrayList<>();
+ private int left,top,tab;
+ private float scale=1;
+ private long opened=System.nanoTime(),lastFrame=opened;
+ private record Control(int x,int y,int w,int h,Supplier<String> label,BooleanSupplier on,float[] hover,ButtonWidget widget){}
  public SakuraScreen(){super(Text.literal("Sakura Live"));}
-
- @Override protected void init() {
-  pills.clear();
-  scale=Math.min(1f,Math.min((width-16)/600f,(height-16)/350f));
-  left=(int)((width/scale-600)/2);
-  top=(int)((height/scale-350)/2);
-  // Cards: Anchor, Crystal, FastPlace
-  toggle(left+192,top+75,79,24,()->s.anchor,()->s.anchor=!s.anchor);
-  toggle(left+493,top+75,79,24,()->s.crystal,()->s.crystal=!s.crystal);
-  field(left+18,top+122,"",()->s.anchorSlot,n->s.anchorSlot=n,1,9);
-  field(left+18,top+152,"",()->s.glowSlot,n->s.glowSlot=n,1,9);
-  field(left+18,top+182,"",()->s.totemSlot,n->s.totemSlot=n,1,9);
-  field(left+302,top+122,"",()->s.crystalSlot,n->s.crystalSlot=n,1,9);
-  field(left+302,top+152,"",()->s.actionDelay,n->s.actionDelay=n,1,20);
-  toggle(left+145,top+263,90,24,()->s.fastPlace,()->s.fastPlace=!s.fastPlace);
-  toggle(left+370,top+263,105,24,()->s.excludeAnchors,()->s.excludeAnchors=!s.excludeAnchors);
-  field(left+302,top+296,"",()->s.placeDelay,n->s.placeDelay=n,0,4);
-  add(left+548,top+10,34,29,()->"X",()->shut());
+ @Override protected void init(){
+  controls.clear();
+  scale=Math.max(0.1f,Math.min(1f,Math.min((width-16)/620f,(height-16)/380f)));
+  left=(int)((width/scale-620)/2);top=(int)((height/scale-380)/2);
+  add(22,105,133,32,()->"01  Anchor",()->tab==0,()->select(0));
+  add(22,146,133,32,()->"02  Crystal",()->tab==1,()->select(1));
+  add(22,187,133,32,()->"03  Utility",()->tab==2,()->select(2));
+  add(22,296,133,30,()->"Edit all hotkeys",()->false,()->client.setScreen(new KeybindsScreen(this,client.options)));
+  add(570,18,30,26,()->"X",()->false,this::close);
+  if(tab==0){
+   toggle(194,107,"Anchor macro",()->s.anchor,()->s.anchor=!s.anchor);
+   number(194,154,"Anchor slot",()->s.anchorSlot,n->s.anchorSlot=n,1,9);
+   number(194,191,"Glowstone slot",()->s.glowSlot,n->s.glowSlot=n,1,9);
+   number(194,228,"Final slot",()->s.totemSlot,n->s.totemSlot=n,1,9);
+   number(194,265,"Step delay / ticks",()->s.actionDelay,n->s.actionDelay=n,1,20);
+  }else if(tab==1){
+   toggle(194,107,"Crystal assist",()->s.crystal,()->s.crystal=!s.crystal);
+   number(194,161,"Place interval / ticks",()->s.crystalPlaceDelay,n->s.crystalPlaceDelay=n,1,20);
+   number(194,202,"Break delay / ticks",()->s.crystalBreakDelay,n->s.crystalBreakDelay=n,1,20);
+  }else{
+   toggle(194,107,"Fast place",()->s.fastPlace,()->s.fastPlace=!s.fastPlace);
+   toggle(194,154,"Exclude anchors",()->s.excludeAnchors,()->s.excludeAnchors=!s.excludeAnchors);
+   number(194,201,"Place delay / ticks",()->s.placeDelay,n->s.placeDelay=n,0,4);
+  }
  }
- private interface Get{int value();}
- private interface Set{void value(int n);}
- private interface Bool{boolean value();}
- private void field(int x,int y,String unused,Get get,Set set,int min,int max){
-  add(x+173,y,25,23,()->"-",()->{set.value(Math.max(min,get.value()-1));s.save();});
-  add(x+235,y,25,23,()->"+",()->{set.value(Math.min(max,get.value()+1));s.save();});
+ private void select(int value){tab=value;clearChildren();init();}
+ private void toggle(int x,int y,String label,BooleanSupplier get,Runnable set){
+  add(x,y,390,30,()->label+"   /   "+(get.getAsBoolean()?"ON":"OFF"),get,()->{set.run();s.save();});
  }
- private void toggle(int x,int y,int w,int h,Bool get,Runnable change){
-  add(x,y,w,h,()->get.value()?"ON":"OFF",()->{change.run();s.save();});
+ private void number(int x,int y,String name,IntSupplier get,IntConsumer set,int min,int max){
+  add(x,y,312,28,()->name+"   "+get.getAsInt(),()->false,()->{});
+  add(x+320,y,31,28,()->"-",()->false,()->{set.accept(Math.max(min,get.getAsInt()-1));s.save();});
+  add(x+359,y,31,28,()->"+",()->false,()->{set.accept(Math.min(max,get.getAsInt()+1));s.save();});
  }
- private void add(int x,int y,int w,int h,Supplier<String> label,Runnable action){
-  addDrawableChild(ButtonWidget.builder(Text.empty(),btn->action.run()).dimensions(Math.round(x*scale),Math.round(y*scale),Math.max(1,Math.round(w*scale)),Math.max(1,Math.round(h*scale))).build());
-  pills.add(new Pill(x,y,w,h,label,false));
+ private void add(int x,int y,int w,int h,Supplier<String> label,BooleanSupplier on,Runnable action){
+  int ax=left+x,ay=top+y;
+  var widget=addDrawableChild(ButtonWidget.builder(Text.literal(label.get()),b->action.run())
+   .dimensions(Math.round(ax*scale),Math.round(ay*scale),Math.max(1,Math.round(w*scale)),Math.max(1,Math.round(h*scale))).build());
+  controls.add(new Control(ax,ay,w,h,label,on,new float[]{0},widget));
  }
- private void shut(){if(client!=null)client.setScreen(null);}
- private void label(DrawContext c,String str,int x,int y,int color){
-  c.drawTextWithShadow(textRenderer,Text.literal(str),x,y,color);
- }
- private void rounded(DrawContext c,int x,int y,int w,int h,int r,int color){
-  r=Math.min(r,Math.min(w,h)/2);
+ private void text(DrawContext c,String str,int x,int y,int color){c.drawTextWithShadow(textRenderer,Text.literal(str),left+x,top+y,color);}
+ private void round(DrawContext c,int x,int y,int w,int h,int r,int color){
   c.fill(x,y+r,x+w,y+h-r,color);
-  for(int iy=0;iy<r;iy++){
-   int d=r-iy;
-   int inset=(int)Math.ceil(r-Math.sqrt(r*r-d*d));
-   c.fill(x+inset,y+iy,x+w-inset,y+iy+1,color);
-   c.fill(x+inset,y+h-iy-1,x+w-inset,y+h-iy,color);
+  for(int i=0;i<r;i++){
+   int inset=(int)Math.ceil(r-Math.sqrt(r*r-(r-i-0.5)*(r-i-0.5)));
+   c.fill(x+inset,y+i,x+w-inset,y+i+1,color);
+   c.fill(x+inset,y+h-i-1,x+w-inset,y+h-i,color);
   }
  }
- private void outline(DrawContext c,int x,int y,int w,int h,int r,int border,int fill){
-  rounded(c,x,y,w,h,r,border);
-  rounded(c,x+1,y+1,w-2,h-2,r-1,fill);
- }
- @Override public void render(DrawContext context,int mouseX,int mouseY,float delta){
-  context.fill(0,0,width,height,0xD6000000);
-  super.render(context,mouseX,mouseY,delta);
-  context.getMatrices().pushMatrix();
-  context.getMatrices().scale(scale,scale);
-  // Draw over the functional vanilla ButtonWidget hitboxes for custom fully rounded pills.
-  outline(context,left,top,600,350,20,0xFF6A2E48,BACK);
-  rounded(context,left+14,top+13,5,28,3,PINK);
-  label(context,"SAKURA",left+29,top+21,PINK);
-  label(context,"LIVE  /  CLIENT",left+95,top+21,TEXT);
-  rounded(context,left+17,top+52,270,161,15,CARD);
-  rounded(context,left+296,top+52,287,161,15,CARD);
-  rounded(context,left+17,top+225,566,96,15,CARD);
-  label(context,"ANCHOR MACRO",left+30,top+79,PINK_LIGHT);
-  label(context,"CRYSTAL MACRO",left+311,top+79,PINK_LIGHT);
-  label(context,"RESPAWN ANCHOR",left+30,top+110,MUTED);
-  label(context,"Anchor slot",left+30,top+131,TEXT);
-  label(context,"Glowstone slot",left+30,top+161,TEXT);
-  label(context,"Totem final slot",left+30,top+191,TEXT);
-  label(context,"Crystal slot",left+311,top+131,TEXT);
-  label(context,"Delay (ticks)",left+311,top+161,TEXT);
-  label(context,"FAST PLACE",left+30,top+242,PINK_LIGHT);
-  label(context,"Enable",left+103,top+270,TEXT);
-  label(context,"Exclude anchors",left+279,top+270,TEXT);
-  label(context,"Place delay",left+311,top+303,TEXT);
-  label(context,"G  Anchor    H  Crystal    RIGHT SHIFT  Menu",left+23,top+331,MUTED);
-  label(context,Integer.toString(s.anchorSlot),left+222,top+129,PINK_LIGHT);
-  label(context,Integer.toString(s.glowSlot),left+222,top+159,PINK_LIGHT);
-  label(context,Integer.toString(s.totemSlot),left+222,top+189,PINK_LIGHT);
-  label(context,Integer.toString(s.crystalSlot),left+506,top+129,PINK_LIGHT);
-  label(context,Integer.toString(s.actionDelay),left+506,top+159,PINK_LIGHT);
-  label(context,Integer.toString(s.placeDelay),left+506,top+303,PINK_LIGHT);
-  for(Pill p:pills){
-   boolean hover=mouseX/scale>=p.x&&mouseX/scale<p.x+p.w&&mouseY/scale>=p.y&&mouseY/scale<p.y+p.h;
-   String value=p.label.get();
-   int color=value.equals("ON")?(hover?0xFFFF78B0:PINK):(hover?CARD_HOVER:OFF);
-   if(value.equals("X"))color=hover?0xFFFF78B0:PINK;
-   rounded(context,p.x,p.y,p.w,p.h,Math.min(10,p.h/2),color);
-   int ink=value.equals("ON")||value.equals("X")?BACK:TEXT;
-   int txtW=textRenderer.getWidth(value);
-   label(context,value,p.x+(p.w-txtW)/2,p.y+(p.h-8)/2,ink);
+ private void panel(DrawContext c,int x,int y,int w,int h,int color){round(c,left+x,top+y,w,h,14,color);}
+ @Override public void render(DrawContext c,int mx,int my,float delta){
+  long now=System.nanoTime();
+  float dt=Math.min(0.1f,(now-lastFrame)/1_000_000_000f);lastFrame=now;
+  float reveal=Math.min(1,(now-opened)/350_000_000f);
+  c.fill(0,0,width,height,0xB8000000);
+  c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);
+  panel(c,-5,4,630,383,0x50000000);
+  panel(c,0,0,620,380,0xFF100D10);
+  panel(c,12,65,155,278,0xFF191418);
+  panel(c,179,65,429,278,0xFF1D161B);
+  round(c,left+23,top+22,(int)(121*(1-Math.pow(1-reveal,3))),3,1,PINK);
+  text(c,"SAKURA",23,35,PINK);text(c,"LIVE / PINK EDITION",185,29,INK);
+  text(c,"YOUR RHYTHM. YOUR CONTROLS.",185,44,MUTED);
+  text(c,"WORKSPACE",24,82,MUTED);
+  text(c,tab==0?"Anchor sequence":tab==1?"Crystal assist":"Utility",194,82,INK);
+  if(tab==1){
+   text(c,"Hold crystals in MAIN HAND + hold RIGHT MOUSE.",194,251,MUTED);
+   text(c,"Aim at obsidian / bedrock or an existing crystal.",194,269,MUTED);
+   text(c,"Release, open a menu or switch item to stop.",194,287,MUTED);
+  }else if(tab==0){
+   text(c,"Aim at the placed anchor for the next steps.",194,309,MUTED);
+  }else{
+   text(c,"20 ticks = 1 second. Settings save automatically.",194,254,MUTED);
   }
-  context.getMatrices().popMatrix();
+  String binding=(tab==0?SakuraClient.anchorKey:tab==1?SakuraClient.crystalKey:SakuraClient.fastKey).getBoundKeyLocalizedText().getString();
+  text(c,"HOTKEY  "+binding,194,326,PINK);
+  text(c,"1.21.11 / FABRIC",23,355,MUTED);
+  text(c,"Menu: "+SakuraClient.menuKey.getBoundKeyLocalizedText().getString(),340,355,MUTED);
+  for(Control p:controls){
+   boolean hover=(mx/scale>=p.x&&mx/scale<p.x+p.w&&my/scale>=p.y&&my/scale<p.y+p.h)||p.widget.isFocused();
+   p.hover[0]+=( (hover?1:0)-p.hover[0])*(1-(float)Math.exp(-dt*14));
+   int shade=(int)(22*p.hover[0]);
+   int color=p.on.getAsBoolean()?0xFF9C305E:0xFF30222B;
+   int red=Math.min(255,((color>>16)&255)+shade),green=Math.min(255,((color>>8)&255)+shade),blue=Math.min(255,(color&255)+shade);
+   round(c,p.x,p.y,p.w,p.h,9,0xFF000000|(red<<16)|(green<<8)|blue);
+   if(hover)round(c,p.x+6,p.y+p.h-3,(int)((p.w-12)*p.hover[0]),2,1,PINK);
+   String label=p.label.get();p.widget.setMessage(Text.literal(label));
+   c.drawTextWithShadow(textRenderer,Text.literal(label),p.x+(p.w-textRenderer.getWidth(label))/2,p.y+(p.h-8)/2,INK);
+  }
+  c.getMatrices().popMatrix();
  }
+ @Override public void close(){s.save();super.close();}
  @Override public boolean shouldPause(){return false;}
 }

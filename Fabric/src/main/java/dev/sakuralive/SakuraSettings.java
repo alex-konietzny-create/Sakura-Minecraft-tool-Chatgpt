@@ -16,6 +16,8 @@ public final class SakuraSettings {
  public int totemSlot = 9;
  public int crystalSlot = 3;
  public int actionDelay = 3;
+ public int crystalPlaceDelay = 3;
+ public int crystalBreakDelay = 3;
  public int placeDelay = 0;
  private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
  private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("sakura-live.json");
@@ -31,6 +33,7 @@ public final class SakuraSettings {
  public void clamp(){
   anchorSlot=cap(anchorSlot,1,9);glowSlot=cap(glowSlot,1,9);
   totemSlot=cap(totemSlot,1,9);crystalSlot=cap(crystalSlot,1,9);
+  crystalPlaceDelay=cap(crystalPlaceDelay,1,20);crystalBreakDelay=cap(crystalBreakDelay,1,20);
   actionDelay=cap(actionDelay,1,20);placeDelay=cap(placeDelay,0,4);
  }
  private static int cap(int n,int min,int max){return Math.max(min,Math.min(max,n));}
