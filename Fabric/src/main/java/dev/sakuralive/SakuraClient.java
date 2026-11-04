@@ -35,6 +35,7 @@ public final class SakuraClient implements ClientModInitializer {
   menuKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.menu",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_RIGHT_SHIFT,group));
   fastKey=KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive.fastplace",InputUtil.Type.KEYSYM,GLFW.GLFW_KEY_J,group));
   ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+  if(net.fabricmc.loader.api.FabricLoader.getInstance().isDevelopmentEnvironment() && Boolean.getBoolean("sakura.uiSmoke"))SakuraUiSmoke.install();
  }
  private void tick(MinecraftClient mc) {
   while(menuKey.wasPressed())mc.setScreen(new SakuraScreen());

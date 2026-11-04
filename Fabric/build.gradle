@@ -12,3 +12,9 @@ dependencies {
 processResources { inputs.property 'version',project.version; filesMatching('fabric.mod.json') { expand version:project.version } }
 tasks.withType(JavaCompile).configureEach { options.release=21 }
 java { sourceCompatibility=JavaVersion.VERSION_21; targetCompatibility=JavaVersion.VERSION_21 }
+
+if (project.hasProperty('uiSmoke')) {
+  loom.runs.client {
+    programArgs '--width', '1280', '--height', '800'
+  }
+}

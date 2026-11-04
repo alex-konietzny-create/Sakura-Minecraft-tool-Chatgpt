@@ -37,7 +37,8 @@ public final class SakuraScreen extends Screen {
  private enum Skin { NAV, HERO, SWITCH, KEY, SLOT, BUTTON }
  private record Control(ButtonWidget widget,Skin skin,Supplier<String> title,
    Supplier<String> detail,BooleanSupplier selected,int index,float[] tween) {}
- public SakuraScreen(){super(Text.literal("Sakura Live · Pink"));}
+ public SakuraScreen(){this(0);}
+ SakuraScreen(int initialTab){super(Text.literal("Sakura Live · Pink"));tab=initialTab;railY=112+tab*54;}
  @Override protected void init(){
   controls.clear();sliders.clear();capture=null;
   scale=Math.max(0.01f,Math.min(1.15f,Math.min((width-20f)/W,(height-20f)/H)));
@@ -107,7 +108,7 @@ public final class SakuraScreen extends Screen {
  private String conflict(KeyBinding key){
   if(key.isUnbound())return "Nicht belegt";
   for(var other:client.options.allKeys)
-   if(other!=key&&!other.isUnbound()&&key.equals(other))return "Konflikt: "+Text.translatable(other.getTranslationKey()).getString();
+   if(other!=key&&!other.isUnbound()&&key.equals(other))return "Konflikt: "+Text.translatable(other.getId()).getString();
   return "Klicken zum Ändern · Esc bricht ab";
  }
  private String moduleHint(){
@@ -298,7 +299,7 @@ public final class SakuraScreen extends Screen {
    round(c,181,92,564,316,15,0xF5110F13);
    panel(c,238,183,450,158);blossom(c,269,213);
    title(c,"Hotkey zuweisen",291,205,1.3f,WHITE);
-   small(c,Text.translatable(capture.getTranslationKey()).getString(),260,239,MUTED,405);
+   small(c,Text.translatable(capture.getId()).getString(),260,239,MUTED,405);
    label(c,"Jetzt eine Taste oder Maustaste drücken.",260,265,WHITE);
    label(c,"Esc: abbrechen   /   Entf: Belegung entfernen",260,296,MUTED);
    label(c,"Menü und Makros bleiben währenddessen pausiert.",260,317,MUTED);
