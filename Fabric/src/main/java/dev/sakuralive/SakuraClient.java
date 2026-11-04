@@ -51,10 +51,17 @@ public final class SakuraClient implements ClientModInitializer {
   while(anchorKey.wasPressed()){
    if(anchorPhase!=0){reset(mc);continue;}
    if(settings.anchor && mc.crosshairTarget instanceof BlockHitResult hit
+       && hit.getType()==net.minecraft.util.hit.HitResult.Type.BLOCK
        && mc.player.canInteractWithBlockAt(hit.getBlockPos(),0)){
-    anchorPhase=1;anchorTarget=hit;waitTicks=0;anchorAge=0;
+    var state=mc.world.getBlockState(hit.getBlockPos());
+    boolean existing=state.isOf(Blocks.RESPAWN_ANCHOR);
+    // Never enter the placement phase when the crosshair already targets an anchor.
+    anchorPhase=existing
+      ?(state.get(net.minecraft.block.RespawnAnchorBlock.CHARGES)>0?3:2)
+      :1;
+    anchorTarget=hit;waitTicks=0;anchorAge=0;
     originalSlot=mc.player.getInventory().getSelectedSlot();expectedSlot=originalSlot;
-    placedAnchor=mc.world.getBlockState(hit.getBlockPos()).isReplaceable()?hit.getBlockPos():hit.getBlockPos().offset(hit.getSide());
+    placedAnchor=existing||state.isReplaceable()?hit.getBlockPos().toImmutable():hit.getBlockPos().offset(hit.getSide());
    }
   }
   if(anchorPhase!=0){
@@ -130,7 +137,7 @@ public final class SakuraClient implements ClientModInitializer {
   BlockHitResult target=anchorTarget;
   if(anchorPhase>=2){
    // The position clicked in phase 1 is an adjacent support block.
-   // Reacquire the new anchor from the crosshair instead of reusing that click.
+   // For placed and pre-existing anchors, only interact with that exact position.
    if(!(mc.crosshairTarget instanceof BlockHitResult current)
      || !current.getBlockPos().equals(placedAnchor)
      || !mc.player.canInteractWithBlockAt(current.getBlockPos(),0)

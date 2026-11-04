@@ -12,3 +12,12 @@ Manual gameplay checklist (NOT performed in CI):
 - Exercise anchor delays, wrong items, charge confirmation, cancellation and final-slot behavior.
 - Check UI at different GUI scales, keyboard navigation and hover transitions.
 CI compilation does not establish runtime mixin compatibility or gameplay correctness.
+
+## Existing anchors (0.2.1)
+Aim directly at an existing respawn anchor and press the anchor action hotkey:
+- CHARGES > 0: start at detonation using the configured final slot; no anchor or glowstone item is required.
+- CHARGES == 0: start at charging using the configured glowstone slot, wait the configured step delay, then detonate.
+- A non-anchor target starts the existing placement sequence.
+The exact anchor position remains locked. Moving to a different anchor never retargets the sequence. Normal abort and timeout rules still apply.
+Manual regression checks: existing anchors with charges 0, 1 and 4; no anchor item in inventory; no glowstone on charged anchors; missing glowstone on uncharged anchors; target removed or changed before the next phase. These gameplay cases have not been run in CI.
+Detonation uses vanilla interaction: dimensions in which anchors set spawn retain vanilla behavior.

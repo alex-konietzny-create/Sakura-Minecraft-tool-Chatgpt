@@ -115,6 +115,16 @@ public final class SakuraScreen extends Screen {
   if(!enabled())return "Ausgeschaltet · hier aktivieren";
   if(client.player==null)return "Aktiviert · keine Welt geöffnet";
   if(tab==1&&!client.player.getMainHandStack().isOf(Items.END_CRYSTAL))return "Aktiviert · Kristalle in die Haupthand nehmen";
+  if(tab==0&&client.world!=null
+     &&client.crosshairTarget instanceof net.minecraft.util.hit.BlockHitResult hit
+     &&hit.getType()==net.minecraft.util.hit.HitResult.Type.BLOCK){
+   var state=client.world.getBlockState(hit.getBlockPos());
+   if(state.isOf(net.minecraft.block.Blocks.RESPAWN_ANCHOR)){
+    if(state.get(net.minecraft.block.RespawnAnchorBlock.CHARGES)>0)return "Vorhandener Anchor geladen · Hotkey zum Auslösen";
+    return client.player.getInventory().getStack(s.glowSlot-1).isOf(Items.GLOWSTONE)
+      ?"Vorhandener Anchor · Laden und Auslösen":"Vorhandener Anchor ungeladen · Glowstone fehlt";
+   }
+  }
   if(tab==0&&!client.player.getInventory().getStack(s.anchorSlot-1).isOf(Items.RESPAWN_ANCHOR))return "Aktiviert · im Anchor-Slot fehlt ein Anchor";
   if(tab==0&&!client.player.getInventory().getStack(s.glowSlot-1).isOf(Items.GLOWSTONE))return "Aktiviert · im Glowstone-Slot fehlt Glowstone";
   return tab==0?"Aktiviert · Starten / Abbrechen mit "+keyName(moduleKey()):
@@ -218,10 +228,10 @@ public final class SakuraScreen extends Screen {
   label(c,active+" / 3 aktiviert",53,304,MUTED);
   label(c,"MENÜ-HOTKEY",29,337,0xFF897581);
   label(c,"TASTENBELEGUNG",29,389,0xFF897581);
-  label(c,"v0.2  /  1.21.11",29,448,0xFF897581);
+  label(c,"v0.2.1 / 1.21.11",29,448,0xFF897581);
   label(c,"DEIN SETUP / "+(tab==2?"UTILITY":"COMBAT"),192,27,MUTED);
   title(c,tab==0?"Anchor":tab==1?"Crystal":"Utility",190,45,2.1f,WHITE);
-  label(c,tab==0?"Drei Schritte. Dein Timing.":tab==1?"Halten. Platzieren. Abbauen.":"Weniger Klicks. Mehr Kontrolle.",192,74,MUTED);
+  label(c,tab==0?"Neu platzieren oder vorhandenen Anchor auslösen.":tab==1?"Halten. Platzieren. Abbauen.":"Weniger Klicks. Mehr Kontrolle.",192,74,MUTED);
   round(c,640,48,94,22,7,0xFF2A1A25);label(c,"PINK EDITION",650,55,PINK);
   c.fill(190,88,736,89,0xFF30232D);
   if(tab==0){
