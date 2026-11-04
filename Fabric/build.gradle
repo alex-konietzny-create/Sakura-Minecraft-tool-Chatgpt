@@ -1,6 +1,6 @@
 plugins { id 'fabric-loom' version '1.14-SNAPSHOT' }
 group='dev.sakuralive'
-version='0.3.0'
+version='0.3.1'
 base { archivesName='SakuraLive-Fabric' }
 repositories { mavenCentral(); maven { url='https://maven.fabricmc.net/' } }
 dependencies {

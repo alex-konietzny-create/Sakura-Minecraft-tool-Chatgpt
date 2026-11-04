@@ -82,7 +82,7 @@ public final class SakuraClient implements ClientModInitializer {
   var state=mc.world.getBlockState(hit.getBlockPos());boolean existing=state.isOf(Blocks.RESPAWN_ANCHOR);
   var r=new Run();r.mode=mode;r.options=optionsFor(mode);r.key=keyFor(mode);
   r.original=r.expected=mc.player.getInventory().getSelectedSlot();
-  r.pos=existing||state.isReplaceable()?hit.getBlockPos().toImmutable():hit.getBlockPos().offset(hit.getSide());
+  r.pos=existing?hit.getBlockPos().toImmutable():PlacementGeometry.destination(mc.world,hit).toImmutable();
   r.cover=coverPosition(mc,r.pos);
   var o=r.options;
   r.plan=new AnchorPlan(existing,existing?state.get(RespawnAnchorBlock.CHARGES):0,mode==2,mode==3?2:1,
@@ -106,7 +106,7 @@ public final class SakuraClient implements ClientModInitializer {
   if(!mc.player.canInteractWithBlockAt(r.pos,0)){cancel(mc,"Anchor außer Reichweite");return;}
   var state=mc.world.getBlockState(r.pos);boolean present=state.isOf(Blocks.RESPAWN_ANCHOR);
   var action=r.plan.poll(new AnchorPlan.Seen(present,present?state.get(RespawnAnchorBlock.CHARGES):0,
-    state.isReplaceable(),mc.world.getBlockState(r.cover).isOf(Blocks.GLOWSTONE)),now);
+    PlacementGeometry.replaceable(state),mc.world.getBlockState(r.cover).isOf(Blocks.GLOWSTONE)),now);
   if(r.plan.done()){
    if(r.plan.stage()==AnchorPlan.Stage.FINISHED){lastStatus="Anchor abgeschlossen";run=null;}
    else cancel(mc,r.plan.reason());
@@ -121,7 +121,7 @@ public final class SakuraClient implements ClientModInitializer {
    if(o.requireAim&&!aimsAtPlacement(mc,r.pos)){cancel(mc,"Platzierziel nicht mehr anvisiert");return;}
   }else if(action==AnchorPlan.Action.COVER){
    if(!r.cover.equals(coverPosition(mc,r.pos))){cancel(mc,"Spielerseite verändert");return;}
-   if(!mc.world.getBlockState(r.cover).isReplaceable()
+   if(!PlacementGeometry.replaceable(mc.world.getBlockState(r.cover))
      ||!mc.world.getOtherEntities(null,new Box(r.cover)).isEmpty()){cancel(mc,"Deckungsposition belegt");return;}
    hit=placementHit(mc,r.cover);
    if(hit==null){cancel(mc,"Glowstone-Deckung nicht platzierbar");return;}
@@ -165,7 +165,7 @@ public final class SakuraClient implements ClientModInitializer {
  private static boolean aimsAtPlacement(MinecraftClient mc,BlockPos pos){
   if(!(mc.crosshairTarget instanceof BlockHitResult h)||h.getType()!=HitResult.Type.BLOCK)return false;
   var clicked=h.getBlockPos();
-  return (mc.world.getBlockState(clicked).isReplaceable()?clicked:clicked.offset(h.getSide())).equals(pos);
+  return PlacementGeometry.destination(mc.world,h).equals(pos);
  }
  private static BlockHitResult trace(MinecraftClient mc,BlockPos pos,Vec3d end){
   var hit=mc.world.raycast(new RaycastContext(mc.player.getEyePos(),end,RaycastContext.ShapeType.OUTLINE,RaycastContext.FluidHandling.NONE,mc.player));
@@ -183,12 +183,8 @@ public final class SakuraClient implements ClientModInitializer {
  }
  private static BlockHitResult placementHit(MinecraftClient mc,BlockPos pos){
   for(Direction dir:new Direction[]{Direction.DOWN,Direction.NORTH,Direction.SOUTH,Direction.WEST,Direction.EAST,Direction.UP}){
-   BlockPos support=pos.offset(dir);var state=mc.world.getBlockState(support);
-   if(state.isReplaceable()||state.isOf(Blocks.RESPAWN_ANCHOR)||!state.isFullCube(mc.world,support))continue;
-   Direction face=dir.getOpposite();
-   Vec3d point=Vec3d.ofCenter(support).add(face.getOffsetX()*0.4999,face.getOffsetY()*0.4999,face.getOffsetZ()*0.4999);
-   var hit=trace(mc,support,point);
-   if(hit!=null&&hit.getSide()==face)return hit;
+   var hit=PlacementGeometry.supportHit(mc.world,mc.player.getEyePos(),pos,dir.getOpposite(),ShapeContext.of(mc.player));
+   if(hit!=null&&mc.player.canInteractWithBlockAt(hit.getBlockPos(),0))return hit;
   }
   return null;
  }

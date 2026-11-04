@@ -24,7 +24,34 @@ final class SakuraUiSmoke {
   var p=pointer(screen,x,y,0);check(screen.mouseClicked(p,false),"click "+x+","+y);screen.mouseReleased(p);
  }
  private static SakuraScreen page(MinecraftClient mc,int tab,int section){var screen=new SakuraScreen(tab,section);mc.setScreen(screen);return screen;}
+
+ private static void verifyFirePlacement(){
+  final var target=new net.minecraft.util.math.BlockPos(0,1,0);
+  final var support=target.down();
+  for(var fire:new net.minecraft.block.Block[]{net.minecraft.block.Blocks.FIRE,net.minecraft.block.Blocks.SOUL_FIRE}){
+   for(boolean wall:new boolean[]{false,true}){
+    net.minecraft.world.BlockView view=new net.minecraft.world.BlockView(){
+     public net.minecraft.block.entity.BlockEntity getBlockEntity(net.minecraft.util.math.BlockPos p){return null;}
+     public net.minecraft.block.BlockState getBlockState(net.minecraft.util.math.BlockPos p){
+      if(p.equals(support)||wall&&p.equals(new net.minecraft.util.math.BlockPos(0,2,1)))return net.minecraft.block.Blocks.OBSIDIAN.getDefaultState();
+      return p.equals(target)?fire.getDefaultState():net.minecraft.block.Blocks.AIR.getDefaultState();
+     }
+     public net.minecraft.fluid.FluidState getFluidState(net.minecraft.util.math.BlockPos p){return net.minecraft.fluid.Fluids.EMPTY.getDefaultState();}
+     public int getHeight(){return 384;}
+     public int getBottomY(){return -64;}
+    };
+    var hit=PlacementGeometry.supportHit(view,new net.minecraft.util.math.Vec3d(.5,3,2.5),target,
+      net.minecraft.util.math.Direction.UP,net.minecraft.block.ShapeContext.absent());
+    check(wall?hit==null:hit!=null&&hit.getBlockPos().equals(support),"fire support ray / solid obstruction: "+fire);
+    var click=new net.minecraft.util.hit.BlockHitResult(net.minecraft.util.math.Vec3d.ofCenter(target),net.minecraft.util.math.Direction.NORTH,target,false);
+    check(PlacementGeometry.destination(view,click).equals(target),"fire keeps intended placement cell");
+   }
+  }
+  System.out.println("[Sakura UI smoke] PASS: normal fire and soul fire placement rays, exact target cell, solid obstruction");
+ }
+
  private static void verifyInputs(MinecraftClient mc){
+  verifyFirePlacement();
   var s=SakuraClient.settings;boolean motion=s.reduceMotion,anchor=s.anchor;
   int oldMs=s.anchorOptions.placeMs,oldSlot=s.anchorOptions.anchorSlot;
   s.reduceMotion=true;
