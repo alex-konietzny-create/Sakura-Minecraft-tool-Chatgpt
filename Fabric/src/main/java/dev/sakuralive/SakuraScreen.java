@@ -220,6 +220,12 @@ public final class SakuraScreen extends Screen {
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   title(c,NAMES[tab],210,39,2.25f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);
+  if(tab==6){
+   round(c,210,96,686,56,11,0xFF241B28);
+   label(c,"DEIN SAKURA",226,107,PINK);
+   label(c,"Ruhige Flächen. Eigene Schrift. Bewegung nach Wunsch.",226,130,MUTED);
+   label(c,"LOOK & FEEL",212,178,MUTED);
+  }
   if(tab!=6){card(c,210,214,418,304);card(c,642,214,254,304);}
   else{
    card(c,210,214,418,304);card(c,642,214,254,304);

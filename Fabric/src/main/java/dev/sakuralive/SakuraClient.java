@@ -127,7 +127,7 @@ public final class SakuraClient implements ClientModInitializer {
    if(hit==null){cancel(mc,"Glowstone-Deckung nicht platzierbar");return;}
    if(o.requireAim&&!aimsAtAnchor(mc,r.pos)){cancel(mc,"Anchor nicht anvisiert");return;}
   }else{
-   hit=anchorHit(mc,r.pos,o.requireAim);
+   hit=r.mode==2&&action==AnchorPlan.Action.DETONATE?safeAnchorHit(mc,r.pos,r.cover,o.requireAim):anchorHit(mc,r.pos,o.requireAim);
    if(hit==null){cancel(mc,"Exaktes Anchor-Ziel verloren");return;}
   }
   int slot=switch(action){case PLACE->o.anchorSlot-1;case CHARGE,COVER->o.glowSlot-1;default->o.finalSlot-1;};
@@ -174,6 +174,12 @@ public final class SakuraClient implements ClientModInitializer {
  private static BlockHitResult anchorHit(MinecraftClient mc,BlockPos pos,boolean requireAim){
   if(aimsAtAnchor(mc,pos))return (BlockHitResult)mc.crosshairTarget;
   return requireAim?null:trace(mc,pos,Vec3d.ofCenter(pos));
+ }
+ private static BlockHitResult safeAnchorHit(MinecraftClient mc,BlockPos pos,BlockPos cover,boolean requireAim){
+  if(requireAim&&!aimsAtAnchor(mc,pos)&&!aimsAtAnchor(mc,cover))return null;
+  var direct=anchorHit(mc,pos,false);if(direct!=null)return direct;
+  // Cover may hide the anchor's center. Use a genuinely visible top face, never click through cover.
+  return trace(mc,pos,Vec3d.ofCenter(pos).add(0,0.4999,0));
  }
  private static BlockHitResult placementHit(MinecraftClient mc,BlockPos pos){
   for(Direction dir:new Direction[]{Direction.DOWN,Direction.NORTH,Direction.SOUTH,Direction.WEST,Direction.EAST,Direction.UP}){
