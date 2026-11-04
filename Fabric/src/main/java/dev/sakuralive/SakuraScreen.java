@@ -127,7 +127,10 @@ public final class SakuraScreen extends Screen {
  @Override public void removed(){flush();super.removed();}
  @Override public boolean shouldPause(){return false;}
  private void text(DrawContext c,String v,int x,int y,int color){c.drawText(textRenderer,ui(v),x,y,color,false);}
- private void bold(DrawContext c,String v,int x,int y,int color){c.drawText(textRenderer,ui(v).copy().formatted(net.minecraft.util.Formatting.BOLD),x,y,color,false);}
+ private void bold(DrawContext c,String v,int x,int y,int color){
+  Text value=s.smoothFont?Text.literal(v).setStyle(Style.EMPTY.withFont(new StyleSpriteSource.Font(Identifier.of("sakuralive","grid_bold")))):ui(v).copy().formatted(net.minecraft.util.Formatting.BOLD);
+  c.drawText(textRenderer,value,x,y,color,false);
+ }
  private void round(DrawContext c,int x,int y,int w,int h,int r,int color){
   c.fill(x,y+r,x+w,y+h-r,color);
   for(int i=0;i<r;i++){int d=(int)Math.ceil(r-Math.sqrt(r*r-(r-i-.5)*(r-i-.5)));c.fill(x+d,y+i,x+w-d,y+i+1,color);c.fill(x+d,y+h-i-1,x+w-d,y+h-i,color);}
