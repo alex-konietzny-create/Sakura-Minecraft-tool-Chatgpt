@@ -3,8 +3,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'Fabric/src/main/java/dev/sakuralive/SakuraScreen.java'
-      - 'Fabric/src/main/java/dev/sakuralive/SakuraUiSmoke.java'
+      - 'Fabric/**'
       - '.github/workflows/ui-preview.yml'
 jobs:
   preview:
