@@ -8,6 +8,7 @@ import java.nio.file.*;
 /** Schema 3 migrates old tick delays to milliseconds once, preserving existing controls. */
 public final class SakuraSettings {
  public int schemaVersion=3;
+ public int systemPulseMs=30;
  public boolean blueAccent=false,smoothFont=true,reduceMotion=false,anchor=false,legitAnchor=false,safeAnchor=false,doubleAnchor=false,crystal=false,fastPlace=false,excludeAnchors=true;
  public AnchorOptions anchorOptions=new AnchorOptions();
  public AnchorOptions legitOptions=AnchorOptions.legit();
@@ -51,6 +52,7 @@ public final class SakuraSettings {
  }
  private static int old(JsonObject raw,String key,int fallback){return raw.has(key)?raw.get(key).getAsInt():fallback;}
  public void clamp(){
+  systemPulseMs=cap(systemPulseMs,10,100);
   if(anchorOptions==null)anchorOptions=new AnchorOptions();if(legitOptions==null)legitOptions=AnchorOptions.legit();
   if(safeOptions==null)safeOptions=new AnchorOptions();if(doubleOptions==null)doubleOptions=new AnchorOptions();
   anchorOptions.clamp();legitOptions.clamp();safeOptions.clamp();doubleOptions.clamp();
@@ -69,3 +71,4 @@ public final class SakuraSettings {
   }catch(Exception e){System.err.println("[Sakura] Settings save: "+e);return false;}
  }
 }
+

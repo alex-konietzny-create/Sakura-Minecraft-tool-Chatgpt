@@ -24,6 +24,7 @@ public final class SakuraDetailsScreen extends Screen {
  private final List<MsSlider> sliders=new ArrayList<>();
  private final List<NumberField> fields=new ArrayList<>();
  private int tab,section;
+ private SmoothUi smooth;
  private float scale,left,top,dt,rail;
  private long opened=System.nanoTime(),pageOpened=opened,lastFrame=opened,changedAt,noticeUntil;
  private boolean dirty;
@@ -36,9 +37,11 @@ public final class SakuraDetailsScreen extends Screen {
  SakuraDetailsScreen(int initial){this(initial,0);}
  SakuraDetailsScreen(int initial,int initialSection){super(Text.literal("Sakura Live"));tab=initial;section=initialSection;rail=104+tab*43;}
  @Override protected void init(){
+  if(smooth!=null)smooth.close();smooth=null;
   controls.clear();sliders.clear();fields.clear();capture=null;
   scale=Math.max(0.01f,Math.min(1.2f,Math.min((width-20f)/W,(height-20f)/H)));
   left=(width/scale-W)/2;top=(height/scale-H)/2;
+  if(s.smoothFont)smooth=new SmoothUi(scale);
   for(int i=0;i<7;i++){
    final int n=i;
    button(24,104+i*43,148,36,Skin.NAV,()->NAMES[n],()->SHORT[n],()->tab==n,i,()->select(n,0));
@@ -82,7 +85,7 @@ public final class SakuraDetailsScreen extends Screen {
   }else{
    button(230,255,378,36,Skin.KEY,()->keyName(SakuraClient.keyFor(tab)),()->"Klicken und Taste oder Maustaste drücken",()->false,0,()->capture=SakuraClient.keyFor(tab));
    if(tab<4){
-    toggle(230,333,378,"Exaktes Anvisieren",()->o.requireAim,()->o.requireAim=!o.requireAim);
+    button(230,333,378,42,Skin.BUTTON,()->"Zielen bleibt bei dir",()->"Klicks wirken auf dein tatsächliches Fadenkreuz",()->true,0,()->{});
     toggle(230,391,378,"Hotkey gedrückt halten",()->o.holdToRun,()->o.holdToRun=!o.holdToRun);
     slider(230,451,378,"Bestätigung: Zeitlimit",()->o.timeoutMs,n->o.timeoutMs=n,250,10000);
    }
@@ -126,7 +129,7 @@ public final class SakuraDetailsScreen extends Screen {
   if(!SakuraClient.enabled(tab))return "Deaktiviert · hier einschalten";
   return switch(tab){
    case 1->"Langsamere Abläufe · Haltemodus separat einstellbar";
-   case 2->"Glowstone vor dem Auslösen als Deckung · ohne Totem-Prüfung";
+   case 2->"Deckungsfläche anvisieren · keine Totem-Prüfung";
    case 3->"Zwei Anchor auf exakt derselben Blockposition";
    case 4->"Kristalle in der Haupthand + rechte Maustaste halten";
    case 5->"Block in der Hand + Benutzen-Taste halten";
@@ -163,7 +166,7 @@ public final class SakuraDetailsScreen extends Screen {
  }
  @Override public boolean mouseDragged(Click click,double dx,double dy){return capture!=null||super.mouseDragged(local(click),dx/scale,dy/scale);}
  @Override public boolean mouseReleased(Click click){boolean done=super.mouseReleased(local(click));flush();return done;}
- @Override public void removed(){capture=null;flush();super.removed();}
+ @Override public void removed(){if(smooth!=null){smooth.close();smooth=null;}capture=null;flush();super.removed();}
  @Override public void close(){capture=null;flush();if(client!=null)client.setScreen(new SakuraScreen(tab<4?1:tab==4?0:tab==5?2:3));}
  @Override public boolean shouldPause(){return false;}
  private float rate(){return s.reduceMotion?1:1-(float)Math.exp(-dt*17);}
@@ -175,17 +178,18 @@ public final class SakuraDetailsScreen extends Screen {
   var text=Text.literal(value);
   return s.smoothFont?text.setStyle(Style.EMPTY.withFont(new StyleSpriteSource.Font(Identifier.of("sakuralive","grid")))):text;
  }
- private int tw(String value){return textRenderer.getWidth(ui(value));}
+ private int tw(String value){return smooth!=null?smooth.width(value):textRenderer.getWidth(ui(value));}
  private String fit(String value,int max){
   if(tw(value)<=max)return value;
   return textRenderer.trimToWidth(ui(value),Math.max(0,max-tw("…"))).getString()+"…";
  }
- private void label(DrawContext c,String value,int x,int y,int color){c.drawText(textRenderer,ui(value),x,y,color,false);}
+ private void label(DrawContext c,String value,int x,int y,int color){if(smooth!=null){smooth.text(c,value,x,y-2,color,false);return;}c.drawText(textRenderer,ui(value),x,y,color,false);}
  private void small(DrawContext c,String value,int x,int y,int color,int max){label(c,fit(value,max),x,y,color);}
  private void title(DrawContext c,String value,int x,int y,float size){
-  c.getMatrices().pushMatrix();c.getMatrices().translate(x,y);c.getMatrices().scale(size,size);label(c,value,0,0,INK);c.getMatrices().popMatrix();
+  c.getMatrices().pushMatrix();c.getMatrices().translate(x,y);c.getMatrices().scale(size,size);if(smooth!=null){smooth.scaled(size).glowText(c,value,0,-2,0xA0000000|(PINK&0xFFFFFF));smooth.scaled(size).text(c,value,0,-2,INK,true);}else label(c,value,0,0,INK);c.getMatrices().popMatrix();
  }
  private void round(DrawContext c,int x,int y,int w,int h,int radius,int color){
+  if(smooth!=null){smooth.round(c,x,y,w,h,radius,color);return;}
   if(w<=0||h<=0)return;int r=Math.min(radius,Math.min(w,h)/2);c.fill(x,y+r,x+w,y+h-r,color);
   for(int i=0;i<r;i++){
    int inset=(int)Math.ceil(r-Math.sqrt(r*r-(r-i-.5)*(r-i-.5)));
@@ -196,6 +200,7 @@ public final class SakuraDetailsScreen extends Screen {
   round(c,x,y,w,h,12,BORDER);round(c,x+1,y+1,w-2,h-2,11,0xFF19171E);
  }
  private void switchAt(DrawContext c,int x,int y,float on){
+  if(smooth!=null)smooth.glow(c,x-18,y-15,70,48,((int)(on*100)<<24)|(PINK&0xFFFFFF));
   round(c,x,y,34,18,9,mix(0xFF44404B,0xFFDD5B92,on));round(c,x+3+Math.round(on*16),y+3,12,12,6,INK);
  }
  private void flower(DrawContext c){
@@ -206,18 +211,26 @@ public final class SakuraDetailsScreen extends Screen {
   PINK=s.blueAccent?0xFF35B5D8:0xFFFF78AB;
   long now=System.nanoTime();dt=Math.min(.1f,(now-lastFrame)/1_000_000_000f);lastFrame=now;
   float off=offset();int mx=(int)(mouseX/scale-left),my=(int)(mouseY/scale-top-off);
-  c.fill(0,0,width,height,0xB0000000);
+  if(smooth!=null)smooth.backdrop(c,width,height,PINK,s.reduceMotion);else c.fill(0,0,width,height,0xE00D0C12);
   c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);c.getMatrices().translate(left,top+off);
   for(int i=6;i>=1;i--)round(c,-i,2-i,W+2*i,H+2*i,20+i,0x06000000);
-  round(c,0,0,W,H,20,0xFF42323D);round(c,1,1,W-2,H-2,19,0xFF100F14);
-  round(c,12,12,174,556,13,0xFF16131B);
+  if(smooth!=null)smooth.glow(c,-45,-35,W+90,H+70,0x29000000|(PINK&0xFFFFFF));
+  round(c,0,0,W,H,20,0xFF493442);round(c,1,1,W-2,H-2,19,0xFF101113);
+  if(smooth!=null){
+   double phase=s.reduceMotion?0:now/1_000_000_000.0;
+   c.enableScissor(1,1,W-1,H-1);
+   smooth.glow(c,200+(int)(Math.sin(phase*.3)*35),-80,610,400,0x34000000|(PINK&0xFFFFFF));
+   smooth.glow(c,570,300+(int)(Math.cos(phase*.22)*30),440,380,0x25000000|(PINK&0xFFFFFF));
+   c.disableScissor();
+  }
+  round(c,12,12,174,556,13,0xFF141517);
   flower(c);title(c,"SAKURA",63,29,1.3f);label(c,"LIVE  /  PINK",64,48,MUTED);
   label(c,"MODULE",29,82,0xFF7C7485);
   rail=ease(rail,104+tab*43);round(c,18,Math.round(rail+9),2,18,1,PINK);
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF7C7485);
-  label(c,"0.3.2 / FABRIC 1.21.11",29,551,0xFF7C7485);
+  label(c,"0.4.1 / FABRIC 1.21.11",29,551,0xFF7C7485);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   title(c,NAMES[tab],210,39,2.25f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);
@@ -283,10 +296,10 @@ public final class SakuraDetailsScreen extends Screen {
     small(c,text,x+13,y+7,mix(MUTED,INK,on),bw-32);
     if(p.index<6){round(c,x+bw-17,y+16,4,4,2,SakuraClient.enabled(p.index)?PINK:0xFF65596B);}
    }else if(p.skin==Skin.TAB){
-    round(c,x,y,bw,bh,7,mix(0xFF151219,0xFF30202D,on));
+    round(c,x,y,bw,bh,7,mix(0xFF141517,0xFF30202D,on));
     label(c,text,x+(bw-tw(text))/2,y+7,on>.5?PINK:MUTED);
    }else if(p.skin==Skin.HERO){
-    round(c,x,y,bw,bh,11,mix(0xFF201B25,0xFF29202B,on));
+    round(c,x,y,bw,bh,11,mix(0xFF1B1D20,0xFF25282C,on));
     round(c,x+1,y+12,2,bh-24,1,mix(0xFF645A6A,PINK,on));
     label(c,text,x+16,y+11,INK);small(c,detail,x+16,y+33,MUTED,bw-97);
     switchAt(c,x+bw-52,y+18,on);
@@ -315,13 +328,15 @@ public final class SakuraDetailsScreen extends Screen {
    var w=f.widget;
    if(!w.isFocused()&&!w.getText().equals(Integer.toString(f.get.getAsInt())))w.setText(Integer.toString(f.get.getAsInt()));
    boolean valid=!w.getText().isEmpty()&&Integer.parseInt(w.getText())>=f.min&&Integer.parseInt(w.getText())<=f.max;
-   round(c,w.getX()-7,w.getY()-3,85,26,6,valid?0xFF342535:0xFF58303E);
-   label(c,"ms",w.getX()+59,w.getY()+4,MUTED);w.render(c,mx,my,delta);
+   round(c,w.getX()-7,w.getY()-3,85,26,6,valid?0xFF292C30:0xFF58303E);
+   label(c,"ms",w.getX()+59,w.getY()+4,MUTED);
+   label(c,w.getText(),w.getX(),w.getY()+2,valid?INK:0xFFFF8C91);
+   if(w.isFocused()&&(now/500_000_000L)%2==0){int cursor=Math.min(w.getCursor(),w.getText().length());int cx=w.getX()+tw(w.getText().substring(0,cursor));c.fill(cx,w.getY()+1,cx+1,w.getY()+14,INK);}
    if(w.isFocused())hover="Erlaubt: "+f.min+" bis "+f.max+" ms. Ungültige Werte werden nicht übernommen.";
   }
   float reveal=s.reduceMotion?1:Math.min(1,(now-pageOpened)/150_000_000f);
   if(reveal<1)round(c,208,212,690,308,12,((int)(180*(1-reveal))<<24)|0x00100F14);
-  round(c,210,533,686,25,7,0xFF1E1822);
+  round(c,210,533,686,25,7,0xFF202225);
   round(c,221,542,5,5,2,0xFFE9AD7B);
   label(c,"Im Menü pausiert",234,538,MUTED);
   String status=now<noticeUntil?notice:"Einstellungen automatisch gespeichert";
@@ -364,3 +379,4 @@ public final class SakuraDetailsScreen extends Screen {
   }
  }
 }
+

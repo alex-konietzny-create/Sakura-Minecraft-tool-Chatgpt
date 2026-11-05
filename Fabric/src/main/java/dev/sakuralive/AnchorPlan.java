@@ -10,7 +10,7 @@ final class AnchorPlan {
  private final boolean coverRequired;
  private final int total;
  private Stage stage;
- private long due,expires;
+ private long due,expires,removedSince=Long.MIN_VALUE;
  private int completed;
  private String reason="";
  AnchorPlan(boolean existing,int charges,boolean coverRequired,int total,Timings timing,long now){
@@ -72,11 +72,15 @@ final class AnchorPlan {
      return Action.DETONATE;
     }
     case WAIT_REMOVED -> {
-     if(seen.anchor)return Action.NONE;
-     completed++;
-     if(completed>=total){stage=Stage.FINISHED;return Action.NONE;}
+     // Client prediction can briefly show air before the server restores the first anchor.
+     // Keep the fixed target and require a continuous free interval before the second click.
+     if(seen.anchor){removedSince=Long.MIN_VALUE;return Action.NONE;}
+     if(completed+1>=total){completed++;stage=Stage.FINISHED;return Action.NONE;}
      if(!seen.replaceable){cancel("Position nach Explosion belegt");return Action.NONE;}
-     transition(Stage.PLACE,now,timing.repeatMs);return Action.NONE;
+     if(removedSince==Long.MIN_VALUE)removedSince=now;
+     if(now-removedSince<ms(timing.repeatMs))return Action.NONE;
+     completed++;removedSince=Long.MIN_VALUE;
+     transition(Stage.PLACE,now,0);continue;
     }
     default -> {return Action.NONE;}
    }

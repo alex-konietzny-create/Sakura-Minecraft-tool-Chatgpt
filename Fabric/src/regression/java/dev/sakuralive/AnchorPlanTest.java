@@ -58,6 +58,35 @@ public final class AnchorPlanTest {
   equal(p.completed(),2,"cycle count");
   equal(p.poll(AIR,at(1000)),AnchorPlan.Action.NONE,"never a third placement");
  }
+ private static void doubleFromAir(){
+  var p=new AnchorPlan(false,0,false,2,T,0);
+  equal(p.poll(AIR,0),AnchorPlan.Action.PLACE,"fresh double starts with first placement");
+  p.confirm(AnchorPlan.Action.PLACE,true,0);
+  equal(p.poll(EMPTY,at(80)),AnchorPlan.Action.CHARGE,"fresh first charge");
+  p.confirm(AnchorPlan.Action.CHARGE,true,at(80));
+  equal(p.poll(CHARGED,at(175)),AnchorPlan.Action.DETONATE,"fresh first detonation");
+  p.confirm(AnchorPlan.Action.DETONATE,true,at(175));
+  equal(p.poll(AIR,at(176)),AnchorPlan.Action.NONE,"fresh waits for free repeat target");
+  equal(p.poll(AIR,at(301)),AnchorPlan.Action.PLACE,"fresh second placement");
+  p.confirm(AnchorPlan.Action.PLACE,true,at(301));
+  equal(p.poll(EMPTY,at(381)),AnchorPlan.Action.CHARGE,"fresh second charge");
+  p.confirm(AnchorPlan.Action.CHARGE,true,at(381));
+  equal(p.poll(CHARGED,at(476)),AnchorPlan.Action.DETONATE,"fresh second detonation");
+  p.confirm(AnchorPlan.Action.DETONATE,true,at(476));p.poll(AIR,at(477));
+  equal(p.completed(),2,"fresh double has exactly two explosions");equal(p.stage(),AnchorPlan.Stage.FINISHED,"fresh double ends");
+ }
+ private static void doublePredictionRollback(){
+  var p=new AnchorPlan(true,1,false,2,T,0);
+  p.confirm(AnchorPlan.Action.DETONATE,true,0);
+  equal(p.poll(AIR,at(50)),AnchorPlan.Action.NONE,"predicted first removal");
+  equal(p.poll(CHARGED,at(100)),AnchorPlan.Action.NONE,"server restores first anchor temporarily");
+  equal(p.poll(AIR,at(200)),AnchorPlan.Action.NONE,"confirmed removal restarts free interval");
+  equal(p.poll(AIR,at(324)),AnchorPlan.Action.NONE,"no early second anchor after rollback");
+  equal(p.poll(AIR,at(325)),AnchorPlan.Action.PLACE,"repeat recovers at exact target instead of cancelling");
+  equal(p.completed(),1,"first explosion counted once");
+  p.confirm(AnchorPlan.Action.PLACE,true,at(325));
+  equal(p.poll(EMPTY,at(405)),AnchorPlan.Action.CHARGE,"second anchor after rollback");
+ }
  private static void failureAndTimeout(){
   var denied=new AnchorPlan(false,0,false,1,T,0);
   denied.confirm(AnchorPlan.Action.PLACE,false,0);
@@ -72,7 +101,7 @@ public final class AnchorPlanTest {
   equal(blocked.stage(),AnchorPlan.Stage.CANCELLED,"blocked repeat position cancels");
  }
  public static void main(String[] args){
-  existingAnchors();confirmations();safeCover();doubleAnchor();failureAndTimeout();
+  existingAnchors();confirmations();safeCover();doubleAnchor();doubleFromAir();doublePredictionRollback();failureAndTimeout();
   System.out.println("PASS: anchor deadlines, world confirmations, cover loss, double-cycle ordering, denials and timeouts");
  }
 }

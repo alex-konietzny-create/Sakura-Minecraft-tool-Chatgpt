@@ -10,11 +10,13 @@ import org.lwjgl.glfw.GLFW;
 import java.io.File;
 /** Development-only rendering and input regression; no world or gameplay. */
 final class SakuraUiSmoke {
- private static final String[] NAMES={"anchor-grid","crystal-grid","utility-grid","themes-grid","anchor-grid-blue"};
- private static final int[] PAGES={1,0,2,3,1};
+ private static final String[] NAMES={"anchor-grid","crystal-grid","utility-grid","themes-grid","anchor-grid-blue","anchor-details"};
+ private static final int[] PAGES={1,0,2,3,1,1};
  private static int stage=-1,wait=60;
  private static boolean tested;
  private static int animationFrame=-1;
+ private static WindowsSystemInput probe;
+ private static int probeWait;
  private static void check(boolean yes,String why){if(!yes)throw new IllegalStateException("Grid UI: "+why);}
  private static Click pointer(SakuraScreen s,double x,double y,int b){
   double scale=Math.max(.01,Math.min(1.2,Math.min((s.width-20.0)/920,(s.height-20.0)/600)));
@@ -79,10 +81,23 @@ final class SakuraUiSmoke {
   ClientTickEvents.END_CLIENT_TICK.register(mc->{
    if(mc.getOverlay()!=null||wait-->0)return;
    if(stage==-1){for(int i=0;i<6;i++)if(!SakuraClient.enabled(i))SakuraClient.toggle(i);mc.setScreen(new SakuraScreen(1));stage=0;wait=40;return;}
+   if(!tested&&com.sun.jna.Platform.isWindows()){
+    try{
+     if(probe==null)probe=new WindowsSystemInput(mc,()->false);
+     if(!probe.available()){check(++probeWait<100,"native hooks initialization: "+probe.status());return;}
+     var right=WindowsSystemInput.event(new InputPulse.Code(true,4096,2),true);
+     check(right.type.intValue()==0&&right.input.mi.dwFlags.intValue()==8,"native right-down structure");
+     var key=WindowsSystemInput.event(new InputPulse.Code(false,49,49),false);
+     check(key.type.intValue()==1&&key.input.ki.wVk.intValue()==49&&key.input.ki.dwFlags.intValue()==2,"native key-up structure");
+     probe.tick(System.nanoTime(),false);check(!probe.tap(mc.options.useKey,System.nanoTime(),30),"hidden Minecraft refuses clicks");
+     probe.close();probe=null;
+     System.out.println("[Sakura UI smoke] PASS: native Windows backend starts under Minecraft headless AWT; hooks and SendInput structures; hidden-window clicks refused. No real key-down injected.");
+    }catch(Exception e){throw new IllegalStateException("Native input probe",e);}
+   }
    if(!tested){verify(mc);tested=true;mc.setScreen(new SakuraScreen(1));wait=40;return;}
    if(stage<NAMES.length){
     ScreenshotRecorder.saveScreenshot(mc.runDirectory,"sakura-"+NAMES[stage]+".png",mc.getFramebuffer(),1,t->System.out.println("[Sakura UI smoke] "+t.getString()));
-    stage++;if(stage<NAMES.length){SakuraClient.settings.blueAccent=stage==4;mc.setScreen(new SakuraScreen(PAGES[stage]));}wait=40;return;
+    stage++;if(stage<NAMES.length){SakuraClient.settings.blueAccent=stage==4;mc.setScreen(stage==5?new SakuraDetailsScreen(0):new SakuraScreen(PAGES[stage]));}wait=40;return;
    }
    for(var name:NAMES){var file=new File(mc.runDirectory,"screenshots/sakura-"+name+".png");check(file.isFile()&&file.length()>0,"screenshot "+name);}
    if(animationFrame==-1)System.out.println("[Sakura UI smoke] Grid pages rendered successfully. No gameplay test.");

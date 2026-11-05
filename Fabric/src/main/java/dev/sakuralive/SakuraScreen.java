@@ -20,6 +20,7 @@ public final class SakuraScreen extends Screen {
  private final List<Field> fields=new ArrayList<>();
  private final List<Card> cards=new ArrayList<>();
  private int page;
+ private SmoothUi smooth;
  private float scale,left,top,dt,navY;
  private long pageOpened=System.nanoTime();
  private final Map<Integer,float[]> cardMotion=new HashMap<>();
@@ -35,12 +36,14 @@ public final class SakuraScreen extends Screen {
  SakuraScreen(int page){super(Text.literal("Sakura Live"));this.page=page;navY=page==3?242:83+page*43;}
  private int accent(){return s.blueAccent?0xFF35B5D8:0xFFEF72AB;}
  private Text ui(String value){return s.smoothFont?Text.literal(value).setStyle(Style.EMPTY.withFont(new StyleSpriteSource.Font(Identifier.of("sakuralive","grid")))):Text.literal(value);}
- private int tw(String value){return textRenderer.getWidth(ui(value));}
- private String fit(String value,int max){return tw(value)<=max?value:textRenderer.trimToWidth(ui(value),Math.max(0,max-tw("…"))).getString()+"…";}
+ private int tw(String value){return smooth!=null?smooth.width(value):textRenderer.getWidth(ui(value));}
+ private String fit(String value,int max){if(tw(value)<=max)return value;while(!value.isEmpty()&&tw(value+"…")>max)value=value.substring(0,value.offsetByCodePoints(value.length(),-1));return value+"…";}
  @Override protected void init(){
+  if(smooth!=null)smooth.close();smooth=null;
   controls.clear();fields.clear();cards.clear();labels.clear();capture=null;
   scale=Math.max(.01f,Math.min(1.2f,Math.min((width-20f)/W,(height-20f)/H)));
   left=(width/scale-W)/2;top=(height/scale-H)/2;
+  if(s.smoothFont)smooth=new SmoothUi(scale);
   String[] nav={"Crystal","Anchor","Utility","Themes"};
   for(int i=0;i<4;i++){final int n=i;button(7,i==3?242:83+i*43,182,35,Kind.NAV,()->nav[n],()->select(n),()->page==n,"Bereich öffnen");}
   button(882,5,25,23,Kind.BUTTON,()->"×",this::close,()->false,"Menü schließen");
@@ -57,7 +60,8 @@ public final class SakuraScreen extends Screen {
    button(240,160,131,35,Kind.BUTTON,()->"Sakura Pink",()->{s.blueAccent=false;changed();},()->!s.blueAccent,"Pinker Sakura-Akzent");
    button(385,160,131,35,Kind.BUTTON,()->"Ocean Blue",()->{s.blueAccent=true;changed();},()->s.blueAccent,"Blaue Farbwelt der Referenz");
    button(240,235,276,35,Kind.BUTTON,()->"Animationen: "+(!s.reduceMotion?"AN":"AUS"),()->{s.reduceMotion=!s.reduceMotion;changed();},()->!s.reduceMotion,"Reduzierte Bewegung umschalten");
-   button(240,286,276,35,Kind.BUTTON,()->"Klare Schrift: "+(s.smoothFont?"AN":"AUS"),()->{s.smoothFont=!s.smoothFont;changed();},()->s.smoothFont,"Schrift umschalten");
+   button(240,286,276,35,Kind.BUTTON,()->"Klare Schrift: "+(s.smoothFont?"AN":"AUS"),()->{s.smoothFont=!s.smoothFont;changed();clearAndInit();},()->s.smoothFont,"Schrift umschalten");
+   number(222,425,"Input press",()->s.systemPulseMs,n->s.systemPulseMs=n,10,100,"ms");
    button(240,368,276,30,Kind.KEY,()->"Menü: "+keyName(SakuraClient.menuKey),()->capture=SakuraClient.menuKey,()->false,"Menü-Hotkey ändern");
   }
  }
@@ -131,14 +135,16 @@ public final class SakuraScreen extends Screen {
  @Override public boolean mouseReleased(Click c){boolean done=super.mouseReleased(local(c));flush();return done;}
  @Override public boolean mouseDragged(Click c,double x,double y){return capture!=null||super.mouseDragged(local(c),x/scale,y/scale);}
  @Override public void close(){capture=null;flush();super.close();}
- @Override public void removed(){flush();super.removed();}
+ @Override public void removed(){flush();if(smooth!=null){smooth.close();smooth=null;}super.removed();}
  @Override public boolean shouldPause(){return false;}
- private void text(DrawContext c,String v,int x,int y,int color){c.drawText(textRenderer,ui(v),x,y,color,false);}
+ private void text(DrawContext c,String v,int x,int y,int color){if(smooth!=null){smooth.text(c,v,x,y-2,color,false);return;}c.drawText(textRenderer,ui(v),x,y,color,false);}
  private void bold(DrawContext c,String v,int x,int y,int color){
+  if(smooth!=null){smooth.text(c,v,x,y-2,color,true);return;}
   Text value=s.smoothFont?Text.literal(v).setStyle(Style.EMPTY.withFont(new StyleSpriteSource.Font(Identifier.of("sakuralive","grid_bold")))):ui(v).copy().formatted(net.minecraft.util.Formatting.BOLD);
   c.drawText(textRenderer,value,x,y,color,false);
  }
  private void round(DrawContext c,int x,int y,int w,int h,int r,int color){
+  if(smooth!=null){smooth.round(c,x,y,w,h,r,color);return;}
   c.fill(x,y+r,x+w,y+h-r,color);
   for(int i=0;i<r;i++){int d=(int)Math.ceil(r-Math.sqrt(r*r-(r-i-.5)*(r-i-.5)));c.fill(x+d,y+i,x+w-d,y+i+1,color);c.fill(x+d,y+h-i-1,x+w-d,y+h-i,color);}
  }
@@ -147,27 +153,37 @@ public final class SakuraScreen extends Screen {
   while(true){c.fill(x,y,x+1,y+1,color);if(x==x2&&y==y2)break;int twice=2*e;if(twice>=dy){e+=dy;x+=sx;}if(twice<=dx){e+=dx;y+=sy;}}
  }
  private void icon(DrawContext c,int x,int y,String type,int color){
+  if(smooth!=null){smooth.icon(c,x,y,type,color);return;}
   if(type.equals("Crystal")){line(c,x+6,y,x+12,y+6,color);line(c,x+12,y+6,x+6,y+12,color);line(c,x+6,y+12,x,y+6,color);line(c,x,y+6,x+6,y,color);line(c,x+6,y+2,x+6,y+10,color);}
   else if(type.equals("Anchor")){c.drawStrokedRectangle(x,y+1,13,11,color);c.drawStrokedRectangle(x+4,y+4,5,5,color);c.fill(x+2,y+12,x+11,y+14,color);}
   else if(type.equals("Utility")){line(c,x+1,y+12,x+12,y+1,color);line(c,x,y+2,x+11,y+13,color);line(c,x+8,y+1,x+12,y+1,color);line(c,x+12,y+1,x+12,y+5,color);}
-  else{round(c,x,y,14,14,7,color);round(c,x+2,y+2,10,10,5,0xFF0B0E18);c.fill(x+4,y+3,x+6,y+5,color);c.fill(x+8,y+4,x+10,y+6,color);c.fill(x+3,y+8,x+5,y+10,color);}
+  else{round(c,x,y,14,14,7,color);round(c,x+2,y+2,10,10,5,0xFF141517);c.fill(x+4,y+3,x+6,y+5,color);c.fill(x+8,y+4,x+10,y+6,color);c.fill(x+3,y+8,x+5,y+10,color);}
  }
- private void panel(DrawContext c,int x,int y,int w,int h){round(c,x,y,w,h,10,0xFF202637);round(c,x+1,y+1,w-2,h-2,9,0xFF101622);}
+ private void panel(DrawContext c,int x,int y,int w,int h){round(c,x,y,w,h,10,0xFF202637);round(c,x+1,y+1,w-2,h-2,9,0xFF1B1D20);}
  @Override public void render(DrawContext c,int mouseX,int mouseY,float delta){
   long now=System.nanoTime();dt=Math.min(.1f,(now-last)/1_000_000_000f);last=now;
   int mx=(int)(mouseX/scale-left),my=(int)(mouseY/scale-top-offset());
-  c.fill(0,0,width,height,0xB0000000);c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);c.getMatrices().translate(left,top+offset());
-  round(c,0,0,W,H,9,0xFF1A2030);round(c,1,1,W-2,H-2,8,0xFF090C15);
+  if(smooth!=null)smooth.backdrop(c,width,height,accent(),s.reduceMotion);else c.fill(0,0,width,height,0xE00D0C12);c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);c.getMatrices().translate(left,top+offset());
+  if(smooth!=null)smooth.glow(c,-45,-35,W+90,H+70,0x29000000|(accent()&0xFFFFFF));
+  round(c,0,0,W,H,9,0xFF493442);round(c,1,1,W-2,H-2,8,0xFF101113);
+  if(smooth!=null){
+   double phase=s.reduceMotion?0:now/1_000_000_000.0;
+   c.enableScissor(1,29,W-1,H-1);
+   smooth.glow(c,200+(int)(Math.sin(phase*.3)*35),-80,610,400,0x34000000|(accent()&0xFFFFFF));
+   smooth.glow(c,570,300+(int)(Math.cos(phase*.22)*30),440,380,0x25000000|(accent()&0xFFFFFF));
+   c.disableScissor();
+  }
   navY=approach(navY,page==3?242:83+page*43,16);
-  c.fill(1,29,197,H-1,0xFF0B0E18);c.fill(197,29,198,H-1,0xFF1A2030);c.fill(1,28,W-1,29,0xFF1C2230);
-  bold(c,"SAKURA",14,8,accent());text(c,"LIVE",66,8,INK);c.fill(102,6,103,21,0xFF293043);text(c,"Pink Client",115,8,MUTED);
+  c.fill(1,29,197,H-1,0xFF141517);c.fill(197,29,198,H-1,0xFF303236);c.fill(1,28,W-1,29,0xFF1C2230);
+  if(smooth!=null)smooth.glowText(c,"SAKURA",14,6,0x99000000|(accent()&0xFFFFFF));
+  bold(c,"SAKURA",14,8,accent());text(c,"LIVE",66,8,INK);c.fill(102,6,103,21,0xFF293043);text(c,"Vanilla Edition",115,8,MUTED);
   text(c,"MACROS",17,57,0xFF677086);text(c,"OTHER",17,215,0xFF677086);
   round(c,7,Math.round(navY),182,35,5,s.blueAccent?0xFF102A38:0xFF2B1A29);
   round(c,7,Math.round(navY)+8,3,19,1,accent());
   String title=page==1?"Anchor Macros":page==0?"Crystal Macros":page==2?"Utility Macros":"Themes";
-  c.getMatrices().pushMatrix();c.getMatrices().translate(222,62);c.getMatrices().scale(1.65f,1.65f);bold(c,title,0,0,INK);c.getMatrices().popMatrix();
+  c.getMatrices().pushMatrix();c.getMatrices().translate(222,62);c.getMatrices().scale(1.65f,1.65f);if(smooth!=null){smooth.scaled(1.65f).glowText(c,title,0,-2,0xA0000000|(accent()&0xFFFFFF));smooth.scaled(1.65f).text(c,title,0,-2,INK,true);}else bold(c,title,0,0,INK);c.getMatrices().popMatrix();
   text(c,page==3?"Choose your accent and interface options.":"Configure your "+(page==1?"anchor":page==0?"crystal":"utility")+" macros",222,89,MUTED);
-  if(page==3)panel(c,222,119,318,321);
+  if(page==3)panel(c,222,119,318,360);
   for(var card:cards){
    int x=card.x,y=card.y;
    c.getMatrices().pushMatrix();c.getMatrices().translate(0,cardOffset(card.module));
@@ -175,8 +191,9 @@ public final class SakuraScreen extends Screen {
    boolean over=mx>=x&&mx<x+318&&my>=y&&my<y+218;
    motion[0]=approach(motion[0],over?1:0,12);
    motion[1]=approach(motion[1],SakuraClient.enabled(card.module)?1:0,10);
+   if(smooth!=null&&motion[0]>.01f)smooth.glow(c,x-25,y-22,368,260,((int)(motion[0]*60)<<24)|(accent()&0xFFFFFF));
    round(c,x,y,318,218,10,mix(0xFF202637,mix(0xFF344055,accent(),.24f),motion[0]));
-   round(c,x+1,y+1,316,216,9,mix(0xFF101622,0xFF151D2C,motion[0]));
+   round(c,x+1,y+1,316,216,9,mix(0xFF1B1D20,0xFF222529,motion[0]));
    round(c,x+16,y+17,3,37,1,mix(0xFF263044,accent(),motion[1]));
    round(c,x+17,y+17,37,37,7,0xFF1B2333);c.drawStrokedRectangle(x+19,y+19,33,33,0xFF29354B);
    bold(c,card.initials,x+25,y+29,accent());
@@ -192,7 +209,7 @@ public final class SakuraScreen extends Screen {
    String[] description=labels.get(row*1000+x).split("\\|",-1);
    text(c,description[0],x+18,row+4,MUTED);
    int bw=description[1].isEmpty()?86:60;
-   round(c,x+210,row-1,bw,23,5,0xFF1A2231);c.drawStrokedRectangle(x+211,row, bw-2,21,0xFF252F41);
+   round(c,x+210,row-1,bw,23,5,0xFF25282C);c.drawStrokedRectangle(x+211,row, bw-2,21,0xFF252F41);
    if(!description[1].isEmpty())text(c,description[1],x+277,row+4,0xFF626D83);
    if(!w.isFocused()&&!w.getText().equals(Integer.toString(field.get.getAsInt())))w.setText(Integer.toString(field.get.getAsInt()));
    String value=w.getText();
@@ -217,17 +234,18 @@ public final class SakuraScreen extends Screen {
    float hover=p.hover[0],active=p.hover[1];
    String value=p.text.get();w.setMessage(Text.literal(value+". "+p.hint));if(over)hint=p.hint;
    if(p.kind==Kind.NAV){
-    if(!on&&hover>.01f)round(c,x,y,bw,bh,4,mix(0xFF0B0E18,0xFF172030,hover));
+    if(!on&&hover>.01f)round(c,x,y,bw,bh,4,mix(0xFF141517,0xFF172030,hover));
     icon(c,x+14,y+10,value,mix(0xFF737D91,accent(),active));
     text(c,value,x+36,y+11,mix(MUTED,accent(),active));
    }else if(p.kind==Kind.POWER){
     // A real tween drives track color and thumb position on every frame.
     round(c,x-7,y+3,29,16,8,mix(0xFF30394C,accent(),active));
+    if(smooth!=null)smooth.glow(c,x-23,y-14,62,50,((int)(active*80+hover*30)<<24)|(accent()&0xFFFFFF));
     int thumb=Math.round(x-4+active*12);
     round(c,thumb,y+6,10,10,5,mix(0xFF8B95A8,0xFFFFFFFF,active));
    }else if(p.kind==Kind.TITLE)bold(c,value,x,y+3,INK);
    else{
-    round(c,x,y,bw,bh,5,mix(0xFF1A2231,0xFF30354A,Math.max(hover,active*.6f)));
+    round(c,x,y,bw,bh,5,mix(0xFF25282C,0xFF30354A,Math.max(hover,active*.6f)));
     String shown=fit(value,bw-10);text(c,shown,x+(bw-tw(shown))/2,y+(bh-10)/2,p.kind==Kind.KEY?INK:mix(MUTED,accent(),Math.max(hover,active)));
    }
    if(w.isFocused())c.drawStrokedRectangle(x-1,y-1,bw+2,bh+2,accent());
@@ -235,7 +253,7 @@ public final class SakuraScreen extends Screen {
   }
   c.fill(9,530,187,531,0xFF1E2635);round(c,13,547,33,33,16,0xFF263044);bold(c,"SL",22,558,accent());round(c,39,572,7,7,3,0xFF45C6A0);
   text(c,"Sakura Live",55,551,INK);text(c,"LOCAL CONFIG",55,569,0xFF647088);
-  text(c,"Sakura 0.3.3",222,581,MUTED);
+  text(c,"Sakura 0.4.1",222,581,MUTED);
   String status=now<noticeUntil?notice:hint.isEmpty()?"Settings saved locally · macros pause while this menu is open":hint;
   text(c,fit(status,555),W-18-Math.min(555,tw(status)),581,now<noticeUntil?accent():0xFF707B91);
   if(capture!=null){
