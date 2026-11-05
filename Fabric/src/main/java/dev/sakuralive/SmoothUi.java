@@ -30,7 +30,7 @@ final class SmoothUi implements AutoCloseable {
    var g=image.createGraphics();g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
    g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS,RenderingHints.VALUE_FRACTIONALMETRICS_ON);
    try(var stream=mc.getResourceManager().getResource(Identifier.of("sakuralive","font/sakura-grid"+(weight==1?"-bold":"")+".ttf")).orElseThrow().getInputStream()){
-    var font=Font.createFont(Font.TRUETYPE_FONT,stream).deriveFont(12f*density);g.setFont(font);g.setColor(Color.WHITE);
+    var font=Font.createFont(Font.TRUETYPE_FONT,stream).deriveFont(11f*density);g.setFont(font);g.setColor(Color.WHITE);
     int index=0;
     for(int cp=32;cp<=383;cp++){
      paintGlyph(g,font,cp,index++,weight);
@@ -99,7 +99,7 @@ final class SmoothUi implements AutoCloseable {
  }
  void backdrop(DrawContext c,int w,int h,int accent,boolean still){
   double time=still?0:System.nanoTime()/1_000_000_000.0;
-  c.fillGradient(0,0,w,h,0xFF05080E,0xFF0B1220);
+  c.fillGradient(0,0,w,h,0xFF060609,0xFF101015);
   glow(c,(int)(-.15*w+Math.sin(time*.22)*w*.06),-h/3,w, h*4/3,0x4D000000|(accent&0xFFFFFF));
   glow(c,(int)(w*.36+Math.cos(time*.17)*w*.05),h/4,w,h,0x33000000|(accent&0xFFFFFF));
  }

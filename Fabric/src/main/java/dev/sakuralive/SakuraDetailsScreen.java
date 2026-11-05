@@ -16,7 +16,7 @@ import java.util.function.*;
 /** Original settings workspace. One inverse transform serves all pointer events. */
 public final class SakuraDetailsScreen extends Screen {
  static final int W=920,H=580;
- private static int PINK=0xFFFF68AC,INK=0xFFF5F7FD,MUTED=0xFFB6C1D3,BORDER=0xFF34425B;
+ private static int PINK=0xFFFF68AC,INK=0xFFF7F5FA,MUTED=0xFFC9C7D0,BORDER=0xFF303036;
  private static final String[] NAMES={"Anchor","Legit Anchor","Safe Anchor","Double Anchor","Crystal","Fast Place","Design"};
  private static final String[] SHORT={"Standard-Sequenz","Bewusst halten","Glowstone-Deckung","Zwei Durchläufe","Halten & Ausführen","Schneller platzieren","Darstellung"};
  private final SakuraSettings s=SakuraClient.settings;
@@ -234,7 +234,7 @@ public final class SakuraDetailsScreen extends Screen {
   c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);c.getMatrices().translate(left,top+off);
   for(int i=6;i>=1;i--)round(c,-i,2-i,W+2*i,H+2*i,20+i,0x06000000);
   if(smooth!=null)smooth.glow(c,-45,-35,W+90,H+70,0x29000000|(PINK&0xFFFFFF));
-  round(c,0,0,W,H,20,0xFF34425B);round(c,1,1,W-2,H-2,19,0xFF0A0D14);
+  round(c,0,0,W,H,20,0xFF303036);round(c,1,1,W-2,H-2,19,0xFF09090C);
   if(smooth!=null){
    double phase=s.reduceMotion?0:now/1_000_000_000.0;
    c.enableScissor(1,1,W-1,H-1);
@@ -242,16 +242,16 @@ public final class SakuraDetailsScreen extends Screen {
    smooth.glow(c,570,300+(int)(Math.cos(phase*.22)*30),440,380,0x25000000|(PINK&0xFFFFFF));
    c.disableScissor();
   }
-  round(c,12,12,174,556,13,0xFF0D121C);
+  round(c,12,12,174,556,13,0xFF101014);
   flower(c);title(c,"SAKURA",63,29,1.3f);label(c,"LIVE  /  PINK",64,48,MUTED);
   label(c,"MODULE",29,82,0xFF9EADC7);
   rail=ease(rail,104+tab*43);round(c,18,Math.round(rail+9),2,18,1,PINK);
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF9EADC7);
-  label(c,"0.6.0 / FABRIC 1.21.11",29,551,0xFF9EADC7);
+  label(c,"0.6.1 / FABRIC 1.21.11",29,551,0xFF9EADC7);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
-  title(c,NAMES[tab],210,39,2.25f);
+  ModuleArt.draw(c,tab,210,40,1.8f);title(c,NAMES[tab],248,39,1.9f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);
   if(tab==6){
    round(c,210,96,686,56,11,0xFF241B28);
@@ -322,10 +322,10 @@ public final class SakuraDetailsScreen extends Screen {
     else small(c,text,x+13,y+7,mix(MUTED,INK,on),bw-32);
     if(p.index<6){round(c,x+bw-17,y+16,4,4,2,SakuraClient.enabled(p.index)?PINK:0xFF65596B);}
    }else if(p.skin==Skin.TAB){
-    round(c,x,y,bw,bh,7,mix(0xFF0D121C,0xFF30202D,on));
+    round(c,x,y,bw,bh,7,mix(0xFF101014,0xFF30202D,on));
     label(c,text,x+(bw-tw(text))/2,y+7,on>.5?PINK:MUTED);
    }else if(p.skin==Skin.HERO){
-    round(c,x,y,bw,bh,11,mix(0xFF131A27,0xFF40516D,on));
+    round(c,x,y,bw,bh,11,mix(0xFF15151B,0xFF303038,on));
     round(c,x+1,y+12,2,bh-24,1,mix(0xFF645A6A,PINK,on));
     if(smooth!=null){smooth.glowText(c,text,x+16,y+9,0xCE000000|(PINK&0xFFFFFF));smooth.text(c,text,x+16,y+9,INK,true);}
     else label(c,text,x+16,y+11,INK);small(c,detail,x+16,y+33,MUTED,bw-97);

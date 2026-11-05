@@ -14,7 +14,7 @@ import java.util.function.*;
 /** Reference-led card grid, with original Sakura identity and working module controls. */
 public final class SakuraScreen extends Screen {
  static final int W=920,H=600;
- private static final int INK=0xFFF5F7FD,MUTED=0xFFB6C1D3;
+ private static final int INK=0xFFF7F5FA,MUTED=0xFFC9C7D0;
  private final SakuraSettings s=SakuraClient.settings;
  private final List<Control> controls=new ArrayList<>();
  private final List<Field> fields=new ArrayList<>();
@@ -56,9 +56,9 @@ public final class SakuraScreen extends Screen {
    card(222,347,2,"Safe Anchor","SA","Deckung & Kamerafahrt");
    card(571,347,3,"Double Anchor","DA","Zweifache Sequenz");
   }else if(page==0){
-   card(222,119,4,"Crystal Assist","CR","Hold crystals and right mouse.");
+   card(222,119,4,"Crystal Assist","CR","Kristall halten · Rechtsklick halten");
   }else if(page==2){
-   card(222,119,5,"Fast Place","FP","Block placement with your timing.");
+   card(222,119,5,"Fast Place","FP","Blöcke in deinem Rhythmus");
    button(571,119,318,80,Kind.BUTTON,()->"Block Outline · Einstellungen",()->{flush();client.setScreen(new SakuraOutlineScreen());},()->s.outline.enabled,"RGB, Glow, Breite und Kantenlänge einstellen");
   }else{
    button(240,160,131,35,Kind.BUTTON,()->"Sakura Pink",()->{s.blueAccent=false;changed();},()->!s.blueAccent,"Pinker Sakura-Akzent");
@@ -74,7 +74,7 @@ public final class SakuraScreen extends Screen {
   cards.add(new Card(x,y,module,title,initials,description));
   button(x+62,y+15,198,35,Kind.TITLE,()->title,()->details(module),()->false,"Alle Einstellungen für "+title+" öffnen");
   button(x+285,y+16,21,21,Kind.POWER,()->"⏻",()->{SakuraClient.toggle(module);changed();},()->SakuraClient.enabled(module),"Modul ein-/ausschalten");
-  button(x+212,y+43,91,22,Kind.BUTTON,()->"Details →",()->details(module),()->false,"Weitere Einstellungen öffnen");
+  button(x+244,y+45,59,18,Kind.BUTTON,()->"Öffnen →",()->details(module),()->false,"Weitere Einstellungen öffnen");
   keyRow(x,y+75,module);
   if(module<4){
    var o=SakuraClient.optionsFor(module);
@@ -90,8 +90,8 @@ public final class SakuraScreen extends Screen {
     else number(x,y+191,"Auslöse-Slot",()->o.finalSlot,n->o.finalSlot=n,1,9,"");
    }
   }else if(module==4){
-   number(x,y+104,"Place delay",()->s.crystalPlaceMs,n->s.crystalPlaceMs=n,0,2000,"ms");
-   number(x,y+133,"Break delay",()->s.crystalBreakMs,n->s.crystalBreakMs=n,0,2000,"ms");
+   number(x,y+104,"Platzierpause",()->s.crystalPlaceMs,n->s.crystalPlaceMs=n,0,2000,"ms");
+   number(x,y+133,"Abbaupause",()->s.crystalBreakMs,n->s.crystalBreakMs=n,0,2000,"ms");
    number(x,y+162,"Timeout",()->s.crystalTimeoutMs,n->s.crystalTimeoutMs=n,250,10000,"ms");
   }else{
    number(x,y+104,"Delay",()->s.placeDelayMs,n->s.placeDelayMs=n,0,200,"ms");
@@ -163,16 +163,16 @@ public final class SakuraScreen extends Screen {
   if(type.equals("Crystal")){line(c,x+6,y,x+12,y+6,color);line(c,x+12,y+6,x+6,y+12,color);line(c,x+6,y+12,x,y+6,color);line(c,x,y+6,x+6,y,color);line(c,x+6,y+2,x+6,y+10,color);}
   else if(type.equals("Anchor")){c.drawStrokedRectangle(x,y+1,13,11,color);c.drawStrokedRectangle(x+4,y+4,5,5,color);c.fill(x+2,y+12,x+11,y+14,color);}
   else if(type.equals("Utility")){line(c,x+1,y+12,x+12,y+1,color);line(c,x,y+2,x+11,y+13,color);line(c,x+8,y+1,x+12,y+1,color);line(c,x+12,y+1,x+12,y+5,color);}
-  else{round(c,x,y,14,14,7,color);round(c,x+2,y+2,10,10,5,0xFF0D121C);c.fill(x+4,y+3,x+6,y+5,color);c.fill(x+8,y+4,x+10,y+6,color);c.fill(x+3,y+8,x+5,y+10,color);}
+  else{round(c,x,y,14,14,7,color);round(c,x+2,y+2,10,10,5,0xFF101014);c.fill(x+4,y+3,x+6,y+5,color);c.fill(x+8,y+4,x+10,y+6,color);c.fill(x+3,y+8,x+5,y+10,color);}
  }
- private void panel(DrawContext c,int x,int y,int w,int h){round(c,x,y,w,h,10,0xFF34425B);round(c,x+1,y+1,w-2,h-2,9,0xFF131A27);}
+ private void panel(DrawContext c,int x,int y,int w,int h){round(c,x,y,w,h,10,0xFF303036);round(c,x+1,y+1,w-2,h-2,9,0xFF15151B);}
  @Override public void render(DrawContext c,int mouseX,int mouseY,float delta){
-  if(!animationReady){if(smooth!=null)smooth.scaled(1.65f);long start=System.nanoTime();if(!hasRendered)opened=start;pageOpened=last=start;animationReady=true;hasRendered=true;}
+  if(!animationReady){if(smooth!=null)smooth.scaled(1.5f);long start=System.nanoTime();if(!hasRendered)opened=start;pageOpened=last=start;animationReady=true;hasRendered=true;}
   long now=System.nanoTime();dt=Math.min(.1f,(now-last)/1_000_000_000f);last=now;
   int mx=(int)(mouseX/scale-left),my=(int)(mouseY/scale-top-offset());
   if(smooth!=null)smooth.backdrop(c,width,height,accent(),s.reduceMotion);else c.fill(0,0,width,height,0xE00D0C12);c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);c.getMatrices().translate(left,top+offset());
   if(smooth!=null)smooth.glow(c,-45,-35,W+90,H+70,0x29000000|(accent()&0xFFFFFF));
-  round(c,0,0,W,H,16,0xFF34425B);round(c,1,1,W-2,H-2,15,0xFF0A0D14);
+  round(c,0,0,W,H,16,0xFF303036);round(c,1,1,W-2,H-2,15,0xFF09090C);
   if(smooth!=null){
    double phase=s.reduceMotion?0:now/1_000_000_000.0;
    c.enableScissor(1,29,W-1,H-1);
@@ -181,14 +181,14 @@ public final class SakuraScreen extends Screen {
    c.disableScissor();
   }
   navY=approach(navY,page==3?242:83+page*43,16);
-  c.fill(1,29,197,H-1,0xFF0D121C);c.fill(197,29,198,H-1,0xFF34425B);c.fill(1,28,W-1,29,0xFF1C2230);
+  c.fill(1,29,197,H-1,0xFF101014);c.fill(197,29,198,H-1,0xFF303036);c.fill(1,28,W-1,29,0xFF1C2230);
   if(smooth!=null)smooth.glowText(c,"SAKURA",14,6,0x99000000|(accent()&0xFFFFFF));
   bold(c,"SAKURA",14,8,accent());text(c,"LIVE",66,8,INK);c.fill(102,6,103,21,0xFF293043);text(c,"FABRIC 1.21.11",115,8,MUTED);
   text(c,"MODULE",17,57,0xFF91A1BC);text(c,"DARSTELLUNG",17,215,0xFF91A1BC);
   round(c,7,Math.round(navY),182,35,5,s.blueAccent?0xFF102A38:0xFF35162A);
   round(c,7,Math.round(navY)+8,3,19,1,accent());
   String title=page==1?"Anchor-Makros":page==0?"Crystal-Makros":page==2?"Werkzeuge":"Themes";
-  c.getMatrices().pushMatrix();c.getMatrices().translate(222,62);c.getMatrices().scale(1.65f,1.65f);if(smooth!=null){smooth.scaled(1.65f).glowText(c,title,0,-2,0xA0000000|(accent()&0xFFFFFF));smooth.scaled(1.65f).text(c,title,0,-2,INK,true);}else bold(c,title,0,0,INK);c.getMatrices().popMatrix();
+  c.getMatrices().pushMatrix();c.getMatrices().translate(222,62);c.getMatrices().scale(1.5f,1.5f);if(smooth!=null){smooth.scaled(1.5f).glowText(c,title,0,-2,0xA0000000|(accent()&0xFFFFFF));smooth.scaled(1.5f).text(c,title,0,-2,INK,true);}else bold(c,title,0,0,INK);c.getMatrices().popMatrix();
   text(c,page==3?"Farbe, Bewegung und Schrift nach deinem Geschmack.":(page==1?"Präzise Abläufe. Deine Hotkeys. Deine Kontrolle.":page==0?"Crystal-Abläufe und Timing.":"Platzierung und Block-Markierung."),222,89,MUTED);
   if(page==1){int active=0;for(int i=0;i<4;i++)if(SakuraClient.enabled(i))active++;round(c,747,64,142,27,13,0xFF182438);round(c,759,75,5,5,2,accent());text(c,active+" / 4 AKTIV",773,73,INK);}
   if(page==3)panel(c,222,119,318,360);
@@ -200,12 +200,10 @@ public final class SakuraScreen extends Screen {
    motion[0]=approach(motion[0],over?1:0,12);
    motion[1]=approach(motion[1],SakuraClient.enabled(card.module)?1:0,10);
    if(smooth!=null&&motion[0]>.01f)smooth.glow(c,x-25,y-22,368,260,((int)(motion[0]*60)<<24)|(accent()&0xFFFFFF));
-   round(c,x,y,318,218,10,mix(0xFF34425B,mix(0xFF344055,accent(),.24f),motion[0]));
-   round(c,x+1,y+1,316,216,9,mix(0xFF131A27,0xFF1B2638,motion[0]));
-   round(c,x+16,y+17,3,37,1,mix(0xFF27364F,accent(),motion[1]));
-   round(c,x+17,y+17,37,37,7,0xFF202A40);c.drawStrokedRectangle(x+19,y+19,33,33,0xFF40516D);
-   bold(c,card.initials,x+25,y+29,accent());
-   text(c,fit(card.description,143),x+63,y+41,MUTED);
+   round(c,x,y,318,218,10,mix(0xFF303036,mix(0xFF344055,accent(),.24f),motion[0]));
+   round(c,x+1,y+1,316,216,9,mix(0xFF15151B,0xFF202026,motion[0]));
+   ModuleArt.draw(c,card.module,x+20,y+20,1.8f);
+   text(c,fit(card.description,187),x+63,y+35,MUTED);
    c.fill(x+17,y+67,x+301,y+68,0xFF2C3A51);
    text(c,"Hotkey",x+18,y+79,MUTED);
    c.getMatrices().popMatrix();
@@ -218,12 +216,12 @@ public final class SakuraScreen extends Screen {
    String[] description=labels.get(row*1000+x).split("\\|",-1);
    text(c,description[0],x+18,row+4,MUTED);
    int bw=description[1].isEmpty()?86:60;
-   round(c,x+210,row-1,bw,23,5,0xFF40516D);round(c,x+211,row,bw-2,21,4,0xFF0B111D);
+   round(c,x+210,row-1,bw,23,5,0xFF303038);round(c,x+211,row,bw-2,21,4,0xFF0C0C10);
    if(!description[1].isEmpty())text(c,description[1],x+277,row+4,0xFF99A8C2);
    if(!w.isFocused()&&!w.getText().equals(Integer.toString(field.get.getAsInt())))w.setText(Integer.toString(field.get.getAsInt()));
    String value=w.getText();
    boolean valid=!value.isEmpty()&&Integer.parseInt(value)>=field.min&&Integer.parseInt(value)<=field.max;
-   if(w.isFocused()){round(c,x+210,row-1,bw,23,5,valid?accent():0xFFFF8C91);round(c,x+211,row,bw-2,21,4,0xFF0B111D);}
+   if(w.isFocused()){round(c,x+210,row-1,bw,23,5,valid?accent():0xFFFF8C91);round(c,x+211,row,bw-2,21,4,0xFF0C0C10);}
    text(c,value,w.getX()+1,w.getY()+2,valid?INK:0xFFFF8C91);
    if(w.isFocused()&&(now/500_000_000L)%2==0){
     int cursor=Math.max(0,Math.min(value.length(),w.getCursor()));
@@ -243,23 +241,24 @@ public final class SakuraScreen extends Screen {
    float hover=p.hover[0],active=p.hover[1];
    String value=p.text.get();w.setMessage(Text.literal(value+". "+p.hint));if(over)hint=p.hint;
    if(p.kind==Kind.NAV){
-    if(!on&&hover>.01f)round(c,x,y,bw,bh,4,mix(0xFF0D121C,0xFF172030,hover));
+    if(!on&&hover>.01f)round(c,x,y,bw,bh,4,mix(0xFF101014,0xFF172030,hover));
     icon(c,x+14,y+10,value,mix(0xFFA3B2C9,accent(),active));
     if(smooth!=null)smooth.glowText(c,value,x+36,y+9,((int)(150+70*Math.max(active,hover))<<24)|(accent()&0xFFFFFF));
     bold(c,value,x+36,y+11,mix(MUTED,accent(),active));
    }else if(p.kind==Kind.POWER){
     // A real tween drives track color and thumb position on every frame.
-    round(c,x-7,y+3,29,16,8,mix(0xFF43506A,accent(),active));
+    round(c,x-5,y+5,25,13,6,mix(0xFF43506A,accent(),active));
     if(smooth!=null)smooth.glow(c,x-23,y-14,62,50,((int)(active*80+hover*30)<<24)|(accent()&0xFFFFFF));
-    int thumb=Math.round(x-4+active*12);
-    round(c,thumb,y+6,10,10,5,mix(0xFFBEC9DA,0xFFFFFFFF,active));
+    int thumb=Math.round(x-3+active*11);
+    round(c,thumb,y+7,9,9,4,mix(0xFFBEC9DA,0xFFFFFFFF,active));
    }else if(p.kind==Kind.TITLE){
     if(smooth!=null)smooth.glowText(c,value,x,y+1,((int)(185+55*hover)<<24)|(accent()&0xFFFFFF));
     bold(c,value,x,y+3,INK);
    }
    else{
-    round(c,x,y,bw,bh,5,mix(0xFF40516D,0xFF30354A,Math.max(hover,active*.6f)));
+    round(c,x,y,bw,bh,5,mix(0xFF202026,0xFF303038,Math.max(hover,active*.6f)));
     String shown=fit(value,bw-10);
+    if(value.startsWith("Block Outline"))ModuleArt.draw(c,6,x+14,y+28,1.5f);
     if(value.startsWith("Block Outline")){
      if(smooth!=null)smooth.glowText(c,shown,x+(bw-tw(shown))/2,y+(bh-10)/2-2,0xC0000000|(accent()&0xFFFFFF));
      bold(c,shown,x+(bw-tw(shown))/2,y+(bh-10)/2,INK);
@@ -269,9 +268,9 @@ public final class SakuraScreen extends Screen {
    if(w.isFocused())c.drawStrokedRectangle(x-1,y-1,bw+2,bh+2,accent());
    if(x>=222&&page!=3)c.getMatrices().popMatrix();
   }
-  c.fill(9,530,187,531,0xFF1E2635);round(c,13,547,33,33,16,0xFF27364F);bold(c,"SL",22,558,accent());round(c,39,572,7,7,3,0xFF45C6A0);
-  text(c,"Sakura Live",55,551,INK);text(c,"LOCAL CONFIG",55,569,0xFF647088);
-  text(c,"Sakura 0.6.0",222,581,MUTED);
+  c.fill(9,530,187,531,0xFF1E2635);round(c,13,547,33,33,16,0xFF27364F);bold(c,client.getSession().getUsername().substring(0,Math.min(2,client.getSession().getUsername().length())).toUpperCase(java.util.Locale.ROOT),20,558,accent());round(c,39,572,7,7,3,0xFF45C6A0);
+  text(c,fit(client.getSession().getUsername(),128),55,551,INK);text(c,"Minecraft-Profil",55,569,MUTED);
+  text(c,"Sakura 0.6.1",222,581,MUTED);
   String status=now<noticeUntil?notice:hint.isEmpty()?("Bereit".equals(SakuraClient.lastStatus)?"Settings saved locally · macros pause while this menu is open":"Letzter Ablauf: "+SakuraClient.lastStatus):hint;
   text(c,fit(status,555),W-18-Math.min(555,tw(status)),581,now<noticeUntil?accent():0xFF707B91);
   if(capture!=null){

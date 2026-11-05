@@ -76,24 +76,24 @@ public final class SakuraOutlineScreen extends Screen {
  @Override public void render(DrawContext c,int mouseX,int mouseY,float delta){
   int mx=(int)(mouseX/scale-left),my=(int)(mouseY/scale-top);long now=System.nanoTime();
   ui.backdrop(c,width,height,accent(),s.reduceMotion);c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);c.getMatrices().translate(left,top);
-  ui.glow(c,-45,-35,1010,670,0x29000000|(accent()&0xFFFFFF));ui.round(c,0,0,920,600,14,0xFF34425B);ui.round(c,1,1,918,598,13,0xFF0A0D14);
+  ui.glow(c,-45,-35,1010,670,0x29000000|(accent()&0xFFFFFF));ui.round(c,0,0,920,600,14,0xFF303036);ui.round(c,1,1,918,598,13,0xFF09090C);
   ui.glow(c,180,-90,650,390,0x35000000|(accent()&0xFFFFFF));
-  c.getMatrices().pushMatrix();c.getMatrices().translate(25,27);c.getMatrices().scale(1.8f,1.8f);ui.scaled(1.8f).glowText(c,"Block Outline",0,0,0xAA000000|(accent()&0xFFFFFF));ui.scaled(1.8f).text(c,"Block Outline",0,0,0xFFF5F7FD,true);c.getMatrices().popMatrix();
-  for(int i=0;i<3;i++){int x=25+i*302;ui.round(c,x,122,267,395,10,0xFF34425B);ui.round(c,x+1,123,265,393,9,0xFF111825);}
-  text(c,"LINIEN",42,137,0xFFB6C1D3);text(c,"FARBE",344,137,0xFFB6C1D3);text(c,"LICHT & BEWEGUNG",646,137,0xFFB6C1D3);
+  c.getMatrices().pushMatrix();c.getMatrices().translate(25,27);c.getMatrices().scale(1.8f,1.8f);ui.scaled(1.8f).glowText(c,"Block Outline",0,0,0xAA000000|(accent()&0xFFFFFF));ui.scaled(1.8f).text(c,"Block Outline",0,0,0xFFF7F5FA,true);c.getMatrices().popMatrix();
+  for(int i=0;i<3;i++){int x=25+i*302;ui.round(c,x,122,267,395,10,0xFF303036);ui.round(c,x+1,123,265,393,9,0xFF111825);}
+  text(c,"LINIEN",42,137,0xFFC9C7D0);text(c,"FARBE",344,137,0xFFC9C7D0);text(c,"LICHT & BEWEGUNG",646,137,0xFFC9C7D0);
   for(var slider:sliders)slider.renderWidget(c,mx,my,delta);
   for(var field:numbers){
    var w=field.widget;if(!w.isFocused())w.setText(value(field.get.getAsInt(),field.divisor));
-   ui.round(c,w.getX()-5,w.getY()-2,61,24,5,0xFF111A29);text(c,w.getText(),w.getX(),w.getY()+3,0xFFF5F7FD);
+   ui.round(c,w.getX()-5,w.getY()-2,61,24,5,0xFF111A29);text(c,w.getText(),w.getX(),w.getY()+3,0xFFF7F5FA);
    if(w.isFocused())c.drawStrokedRectangle(w.getX()-5,w.getY()-2,61,24,accent());
   }
   for(var control:controls){var w=control.widget;boolean over=w.isMouseOver(mx,my)||w.isFocused();int color=control.enabled.getAsBoolean()?0xFF43303F:over?0xFF34343E:0xFF25282E;
    ui.round(c,w.getX(),w.getY(),w.getWidth(),w.getHeight(),6,color);String label=control.text.get();text(c,label,w.getX()+(w.getWidth()-ui.width(label))/2,w.getY()+9,control.enabled.getAsBoolean()?accent():0xFFE7E5ED);w.setMessage(Text.literal(label));
   }
   preview(c,680,37,now);
-  text(c,"Vorschau oben · AUS stellt die normale Minecraft-Markierung wieder her.",25,544,0xFFB6C1D3);
-  text(c,"Änderungen werden automatisch gespeichert · Sakura 0.6.0",25,570,0xFF7C8190);
-  if(capture){ui.round(c,240,230,440,120,12,0xFA16141B);text(c,"Taste oder Maustaste drücken",265,261,0xFFF4EBF1);text(c,"Esc: abbrechen · Entf: entfernen",265,300,0xFFB6C1D3);}
+  text(c,"Vorschau oben · AUS stellt die normale Minecraft-Markierung wieder her.",25,544,0xFFC9C7D0);
+  text(c,"Änderungen werden automatisch gespeichert · Sakura 0.6.1",25,570,0xFF7C8190);
+  if(capture){ui.round(c,240,230,440,120,12,0xFA16141B);text(c,"Taste oder Maustaste drücken",265,261,0xFFF4EBF1);text(c,"Esc: abbrechen · Entf: entfernen",265,300,0xFFC9C7D0);}
   c.getMatrices().popMatrix();
  }
  private void preview(DrawContext c,int x,int y,long now){

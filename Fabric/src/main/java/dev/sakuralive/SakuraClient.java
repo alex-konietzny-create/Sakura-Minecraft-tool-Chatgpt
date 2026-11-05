@@ -93,15 +93,12 @@ public final class SakuraClient implements ClientModInitializer {
   while(Hotkeys.take(4)||crystalKey.wasPressed()){toggle(4);settings.save();}
   while(Hotkeys.take(5)||fastKey.wasPressed()){toggle(5);settings.save();}
   for(int mode=0;mode<4;mode++)while(Hotkeys.take(mode)||keyFor(mode).wasPressed()){
-   if(run!=null){
-    if((mode==0||mode==2)&&run.mode==mode){run.repeats.request();lastStatus="Nächster Anchor vorgemerkt";}
-    else if(run.mode==mode)lastStatus="Anchor-Ablauf läuft weiter; Esc bricht ab";
-    else lastStatus="Ein anderer Anchor-Ablauf läuft bereits";
-    continue;
-   }
-   if(pendingRepeat!=null&&pendingRepeat.source.mode==mode){pendingRepeat.queued=true;continue;}
+   if(!enabled(mode))continue;
+   // A fresh physical press supersedes the old target; never queue behind it.
    pendingRepeat=null;
-   if(enabled(mode))start(mc,mode);
+   if(inputs!=null)inputs.releaseAll();
+   if(run!=null){restoreCamera(mc,run);run=null;}
+   start(mc,mode);
   }
  }
  private void drain(){Hotkeys.clear();for(int i=0;i<6;i++)while(keyFor(i).wasPressed()){}}
