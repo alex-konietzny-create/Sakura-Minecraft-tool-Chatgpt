@@ -221,9 +221,8 @@ public final class SakuraClient implements ClientModInitializer {
     if(best==null){cancel(mc,"Keine sichtbare tragfähige Fläche für Glowstone-Deckung");return;}
     r.cameraTarget=best.getPos();
    }else{
-    var point=Vec3d.ofCenter(r.pos);
-    var ray=mc.world.raycast(new RaycastContext(mc.player.getEyePos(),point,RaycastContext.ShapeType.OUTLINE,RaycastContext.FluidHandling.NONE,mc.player));
-    if(ray.getType()!=HitResult.Type.BLOCK||!ray.getBlockPos().equals(r.pos)){cancel(mc,"Anchor für Kamerarückkehr verdeckt");return;}
+    var point=PlacementGeometry.visibleAnchor(mc.world,mc.player.getEyePos(),r.pos,ShapeContext.of(mc.player));
+    if(point==null){cancel(mc,"Anchor für Kamerarückkehr verdeckt");return;}
     r.cameraTarget=point;
    }
   }

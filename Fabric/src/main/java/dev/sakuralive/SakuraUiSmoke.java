@@ -46,6 +46,16 @@ final class SakuraUiSmoke {
     check(PlacementGeometry.destination(view,click).equals(target),"fire keeps intended placement cell");
    }
   }
+  var anchor=new net.minecraft.util.math.BlockPos(0,1,3);var cover=anchor.north();
+  net.minecraft.world.BlockView coverView=new net.minecraft.world.BlockView(){
+   public net.minecraft.block.entity.BlockEntity getBlockEntity(net.minecraft.util.math.BlockPos p){return null;}
+   public net.minecraft.block.BlockState getBlockState(net.minecraft.util.math.BlockPos p){return p.equals(anchor)?net.minecraft.block.Blocks.RESPAWN_ANCHOR.getDefaultState():p.equals(cover)?net.minecraft.block.Blocks.GLOWSTONE.getDefaultState():net.minecraft.block.Blocks.AIR.getDefaultState();}
+   public net.minecraft.fluid.FluidState getFluidState(net.minecraft.util.math.BlockPos p){return net.minecraft.fluid.Fluids.EMPTY.getDefaultState();}
+   public int getHeight(){return 384;}public int getBottomY(){return -64;}
+  };
+  var eye=new net.minecraft.util.math.Vec3d(.5,2.62,.5);
+  var upper=PlacementGeometry.visibleAnchor(coverView,eye,anchor,net.minecraft.block.ShapeContext.absent());
+  check(upper!=null&&upper.y>1.9,"safe return can aim above glowstone cover instead of blocked anchor center");
   System.out.println("[Sakura UI smoke] PASS: normal fire and soul fire placement rays, exact target cell, solid obstruction");
  }
 
