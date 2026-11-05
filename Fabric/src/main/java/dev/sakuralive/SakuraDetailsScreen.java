@@ -98,7 +98,7 @@ public final class SakuraDetailsScreen extends Screen {
   }
   if(section==0&&tab<5){
    String[] profiles={"Turbo","Schnell","Ruhig"};
-   for(int i=0;i<3;i++){final int profile=i;button(660+i*74,401,68,24,Skin.BUTTON,()->profiles[profile],()->"Setzt alle Aktionspausen gemeinsam",()->false,0,()->{
+   for(int i=0;i<3;i++){final int profile=i;button(660+i*74,401,68,24,Skin.BUTTON,()->profiles[profile],()->"Setzt alle Aktionspausen gemeinsam",()->(tab<4?o.placeMs:s.crystalPlaceMs)==(profile==0?0:profile==1?25:150)&&(tab<4?o.chargeMs:s.crystalBreakMs)==(profile==0?0:profile==1?25:150),0,()->{
     if(tab<4)o.speed(profile);else{s.crystalPlaceMs=s.crystalBreakMs=profile==0?0:profile==1?25:150;}
     s.systemPulseMs=profile==0?4:profile==1?8:20;changed();clearAndInit();
    });}
@@ -142,7 +142,7 @@ public final class SakuraDetailsScreen extends Screen {
   if(!SakuraClient.enabled(tab))return "Deaktiviert · hier einschalten";
   return switch(tab){
    case 1->"Langsamere Abläufe · Haltemodus separat einstellbar";
-   case 2->"Deckungsfläche anvisieren · keine Totem-Prüfung";
+   case 2->(s.safeOptions.autoCamera?"Kamera zur Deckung und zurück · keine Totem-Prüfung":"Deckungsfläche selbst anvisieren · keine Totem-Prüfung");
    case 3->"Zwei Anchor auf exakt derselben Blockposition";
    case 4->"Kristalle in der Haupthand + rechte Maustaste halten";
    case 5->"Block in der Hand + Benutzen-Taste halten";
@@ -261,7 +261,7 @@ public final class SakuraDetailsScreen extends Screen {
    label(c,"Schrift, Bewegung und Bedienung.",230,461,MUTED);
   }
   if(tab!=6){
-   label(c,section==0?"ZEITEN IN MILLISEKUNDEN":tab<4&&section==1?"DEINE HOTBAR":"HOTKEY & VERHALTEN",230,232,MUTED);
+   label(c,tab==2&&section==3?"KAMERASTEUERUNG":section==0?"ZEITEN IN MILLISEKUNDEN":tab<4&&section==1?"DEINE HOTBAR":"HOTKEY & VERHALTEN",230,232,MUTED);
    if(tab<4&&section==1){
     label(c,"Anchor",230,257,INK);label(c,"Glowstone",230,329,INK);label(c,"Finaler Slot · kein Totem erforderlich",230,401,INK);
    }else if(tab==2&&section==3){
@@ -349,7 +349,7 @@ public final class SakuraDetailsScreen extends Screen {
    if(!w.isFocused()&&!w.getText().equals(Integer.toString(f.get.getAsInt())))w.setText(Integer.toString(f.get.getAsInt()));
    boolean valid=!w.getText().isEmpty()&&Integer.parseInt(w.getText())>=f.min&&Integer.parseInt(w.getText())<=f.max;
    round(c,w.getX()-7,w.getY()-3,85,26,6,valid?0xFF292C30:0xFF58303E);
-   label(c,"ms",w.getX()+59,w.getY()+4,MUTED);
+   label(c,tab==2&&section==3?"°/s":"ms",w.getX()+59,w.getY()+4,MUTED);
    label(c,w.getText(),w.getX(),w.getY()+2,valid?INK:0xFFFF8C91);
    if(w.isFocused()&&(now/500_000_000L)%2==0){int cursor=Math.min(w.getCursor(),w.getText().length());int cx=w.getX()+tw(w.getText().substring(0,cursor));c.fill(cx,w.getY()+1,cx+1,w.getY()+14,INK);}
    if(w.isFocused())hover="Erlaubt: "+f.min+" bis "+f.max+" ms. Ungültige Werte werden nicht übernommen.";
