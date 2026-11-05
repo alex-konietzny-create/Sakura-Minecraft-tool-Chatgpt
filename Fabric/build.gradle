@@ -1,6 +1,6 @@
 plugins { id 'fabric-loom' version '1.14-SNAPSHOT' }
 group='dev.sakuralive'
-version='0.4.1'
+version='0.4.2'
 base { archivesName='SakuraLive-Fabric' }
 repositories { mavenCentral(); maven { url='https://maven.fabricmc.net/' } }
 dependencies {
@@ -44,3 +44,10 @@ tasks.register('inputRegression',JavaExec) {
  mainClass='dev.sakuralive.InputPulseTest'
 }
 tasks.named('check') { dependsOn 'inputRegression' }
+
+tasks.register('outlineRegression',JavaExec) {
+ dependsOn tasks.named('regressionClasses')
+ classpath=sourceSets.regression.runtimeClasspath
+ mainClass='dev.sakuralive.OutlineGeometryTest'
+}
+tasks.named('check') { dependsOn 'outlineRegression' }

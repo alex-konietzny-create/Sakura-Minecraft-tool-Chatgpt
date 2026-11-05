@@ -21,6 +21,8 @@ public final class SakuraScreen extends Screen {
  private final List<Card> cards=new ArrayList<>();
  private int page;
  private SmoothUi smooth;
+ private boolean animationReady,hasRendered;
+ private float smoothScale;
  private float scale,left,top,dt,navY;
  private long pageOpened=System.nanoTime();
  private final Map<Integer,float[]> cardMotion=new HashMap<>();
@@ -39,11 +41,12 @@ public final class SakuraScreen extends Screen {
  private int tw(String value){return smooth!=null?smooth.width(value):textRenderer.getWidth(ui(value));}
  private String fit(String value,int max){if(tw(value)<=max)return value;while(!value.isEmpty()&&tw(value+"…")>max)value=value.substring(0,value.offsetByCodePoints(value.length(),-1));return value+"…";}
  @Override protected void init(){
-  if(smooth!=null)smooth.close();smooth=null;
+  animationReady=false;
   controls.clear();fields.clear();cards.clear();labels.clear();capture=null;
   scale=Math.max(.01f,Math.min(1.2f,Math.min((width-20f)/W,(height-20f)/H)));
   left=(width/scale-W)/2;top=(height/scale-H)/2;
-  if(s.smoothFont)smooth=new SmoothUi(scale);
+  if(smooth!=null&&(!s.smoothFont||smoothScale!=scale)){smooth.close();smooth=null;}
+  if(s.smoothFont&&smooth==null){smooth=new SmoothUi(scale);smoothScale=scale;}
   String[] nav={"Crystal","Anchor","Utility","Themes"};
   for(int i=0;i<4;i++){final int n=i;button(7,i==3?242:83+i*43,182,35,Kind.NAV,()->nav[n],()->select(n),()->page==n,"Bereich öffnen");}
   button(882,5,25,23,Kind.BUTTON,()->"×",this::close,()->false,"Menü schließen");
@@ -56,6 +59,7 @@ public final class SakuraScreen extends Screen {
    card(222,119,4,"Crystal Assist","CR","Hold crystals and right mouse.");
   }else if(page==2){
    card(222,119,5,"Fast Place","FP","Block placement with your timing.");
+   button(571,119,318,80,Kind.BUTTON,()->"Block Outline · Einstellungen",()->{flush();client.setScreen(new SakuraOutlineScreen());},()->s.outline.enabled,"RGB, Glow, Breite und Kantenlänge einstellen");
   }else{
    button(240,160,131,35,Kind.BUTTON,()->"Sakura Pink",()->{s.blueAccent=false;changed();},()->!s.blueAccent,"Pinker Sakura-Akzent");
    button(385,160,131,35,Kind.BUTTON,()->"Ocean Blue",()->{s.blueAccent=true;changed();},()->s.blueAccent,"Blaue Farbwelt der Referenz");
@@ -161,6 +165,7 @@ public final class SakuraScreen extends Screen {
  }
  private void panel(DrawContext c,int x,int y,int w,int h){round(c,x,y,w,h,10,0xFF202637);round(c,x+1,y+1,w-2,h-2,9,0xFF1B1D20);}
  @Override public void render(DrawContext c,int mouseX,int mouseY,float delta){
+  if(!animationReady){if(smooth!=null)smooth.scaled(1.65f);long start=System.nanoTime();if(!hasRendered)opened=start;pageOpened=last=start;animationReady=true;hasRendered=true;}
   long now=System.nanoTime();dt=Math.min(.1f,(now-last)/1_000_000_000f);last=now;
   int mx=(int)(mouseX/scale-left),my=(int)(mouseY/scale-top-offset());
   if(smooth!=null)smooth.backdrop(c,width,height,accent(),s.reduceMotion);else c.fill(0,0,width,height,0xE00D0C12);c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);c.getMatrices().translate(left,top+offset());
@@ -253,7 +258,7 @@ public final class SakuraScreen extends Screen {
   }
   c.fill(9,530,187,531,0xFF1E2635);round(c,13,547,33,33,16,0xFF263044);bold(c,"SL",22,558,accent());round(c,39,572,7,7,3,0xFF45C6A0);
   text(c,"Sakura Live",55,551,INK);text(c,"LOCAL CONFIG",55,569,0xFF647088);
-  text(c,"Sakura 0.4.1",222,581,MUTED);
+  text(c,"Sakura 0.4.2",222,581,MUTED);
   String status=now<noticeUntil?notice:hint.isEmpty()?"Settings saved locally · macros pause while this menu is open":hint;
   text(c,fit(status,555),W-18-Math.min(555,tw(status)),581,now<noticeUntil?accent():0xFF707B91);
   if(capture!=null){

@@ -10,11 +10,12 @@ import org.lwjgl.glfw.GLFW;
 import java.io.File;
 /** Development-only rendering and input regression; no world or gameplay. */
 final class SakuraUiSmoke {
- private static final String[] NAMES={"anchor-grid","crystal-grid","utility-grid","themes-grid","anchor-grid-blue","anchor-details"};
- private static final int[] PAGES={1,0,2,3,1,1};
+ private static final String[] NAMES={"anchor-grid","crystal-grid","utility-grid","themes-grid","anchor-grid-blue","anchor-details","block-outline"};
+ private static final int[] PAGES={1,0,2,3,1,1,2};
  private static int stage=-1,wait=60;
  private static boolean tested;
  private static int animationFrame=-1;
+ private static long nextCapture;
  private static WindowsSystemInput probe;
  private static int probeWait;
  private static void check(boolean yes,String why){if(!yes)throw new IllegalStateException("Grid UI: "+why);}
@@ -75,7 +76,32 @@ final class SakuraUiSmoke {
   check(mc.currentScreen instanceof SakuraScreen,"details back navigation");
   screen=new SakuraScreen(3);mc.setScreen(screen);click(screen,440,175);check(s.blueAccent,"theme switch");
   s.reduceMotion=motion;s.blueAccent=blue;s.anchorOptions.placeMs=delay;s.anchorOptions.anchorSlot=slot;s.save();
+  var before=InputUtil.fromTranslationKey(SakuraClient.anchorKey.getBoundKeyTranslationKey());
+  boolean jump=mc.options.jumpKey.isPressed();
+  SakuraClient.anchorKey.setBoundKey(net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.getBoundKeyOf(mc.options.jumpKey));
+  check(Hotkeys.route(i->i==0,GLFW.GLFW_PRESS,true),"shortcut consumed");
+  check(Hotkeys.take(0)&&!Hotkeys.take(0),"one macro trigger");
+  check(mc.options.jumpKey.isPressed()==jump,"shared vanilla key state untouched");
+  Hotkeys.route(i->i==0,GLFW.GLFW_RELEASE,true);check(!SakuraClient.anchorKey.isPressed(),"shortcut releases");
+  check(!Hotkeys.route(i->i==0,GLFW.GLFW_PRESS,false)&&!Hotkeys.take(0),"UI input passes through without macro trigger");
+  SakuraClient.anchorKey.setBoundKey(before);KeyBinding.updateKeysByCode();
+  var outline=new SakuraOutlineScreen();mc.setScreen(outline);outline.resize(640,420);
+  double outlineScale=Math.min(1.2,Math.min((outline.width-20.0)/920,(outline.height-20.0)/600));
+  double lx=(outline.width-outlineScale*920)/2,ly=(outline.height-outlineScale*600)/2;
+  int red=s.outline.red;
+  var p=new Click(lx+outlineScale*554,ly+outlineScale*166,new MouseInput(0,0));
+  outline.mouseClicked(p,false);check(outline.getFocused() instanceof TextFieldWidget,"outline RGB field focus");
+  ((TextFieldWidget)outline.getFocused()).setText("123");outline.keyPressed(new KeyInput(GLFW.GLFW_KEY_ENTER,0,0));
+  check(s.outline.red==123&&SakuraSettings.load().outline.red==123,"outline RGB persistence");
+  s.outline.red=red;s.save();outline.close();
+  System.out.println("[Sakura UI smoke] PASS: shortcut consumed once without changing shared vanilla key; releases and GUI passthrough; outline RGB field and persistence");
   System.out.println("[Sakura UI smoke] PASS: card power toggles, direct ms/slot fields, persistence, keyboard/mouse binding, advanced navigation and theme; three UI sizes");
+ }
+ static void frame(MinecraftClient mc){
+  if(animationFrame<0||animationFrame>=18||System.nanoTime()<nextCapture)return;
+  ScreenshotRecorder.saveScreenshot(mc.runDirectory,String.format("sakura-motion-%02d.png",animationFrame),mc.getFramebuffer(),1,t->{});
+  if(animationFrame==3||animationFrame==10)SakuraClient.toggle(0);
+  animationFrame++;nextCapture=System.nanoTime()+50_000_000L;
  }
  static void install(){
   ClientTickEvents.END_CLIENT_TICK.register(mc->{
@@ -97,16 +123,12 @@ final class SakuraUiSmoke {
    if(!tested){verify(mc);tested=true;mc.setScreen(new SakuraScreen(1));wait=40;return;}
    if(stage<NAMES.length){
     ScreenshotRecorder.saveScreenshot(mc.runDirectory,"sakura-"+NAMES[stage]+".png",mc.getFramebuffer(),1,t->System.out.println("[Sakura UI smoke] "+t.getString()));
-    stage++;if(stage<NAMES.length){SakuraClient.settings.blueAccent=stage==4;mc.setScreen(stage==5?new SakuraDetailsScreen(0):new SakuraScreen(PAGES[stage]));}wait=40;return;
+    stage++;if(stage<NAMES.length){SakuraClient.settings.blueAccent=stage==4;mc.setScreen(stage==6?new SakuraOutlineScreen():stage==5?new SakuraDetailsScreen(0):new SakuraScreen(PAGES[stage]));}wait=40;return;
    }
    for(var name:NAMES){var file=new File(mc.runDirectory,"screenshots/sakura-"+name+".png");check(file.isFile()&&file.length()>0,"screenshot "+name);}
    if(animationFrame==-1)System.out.println("[Sakura UI smoke] Grid pages rendered successfully. No gameplay test.");
    if(animationFrame==-1){SakuraClient.settings.reduceMotion=false;SakuraClient.settings.blueAccent=false;mc.setScreen(new SakuraScreen(1));animationFrame=0;wait=0;return;}
-   if(animationFrame<18){
-    if(animationFrame==3||animationFrame==10)SakuraClient.toggle(0);
-    ScreenshotRecorder.saveScreenshot(mc.runDirectory,String.format("sakura-motion-%02d.png",animationFrame),mc.getFramebuffer(),1,t->{});
-    animationFrame++;wait=0;return;
-   }
+   if(animationFrame<18)return;
    System.out.println("[Sakura UI smoke] PASS: captured 18 live animation frames.");
    mc.scheduleStop();wait=Integer.MAX_VALUE;
   });

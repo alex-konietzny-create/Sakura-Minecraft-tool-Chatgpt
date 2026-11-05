@@ -8,6 +8,12 @@ import java.nio.file.*;
 /** Schema 3 migrates old tick delays to milliseconds once, preserving existing controls. */
 public final class SakuraSettings {
  public int schemaVersion=3;
+ public OutlineOptions outline=new OutlineOptions();
+ public static final class OutlineOptions {
+  public boolean enabled=false,glow=true,rainbow=false,pulse=false,corners=false;
+  public int width=25,length=100,opacity=230,red=255,green=105,blue=170,glowRadius=8,glowStrength=45,rainbowSeconds=8,pulseSeconds=3;
+  void clamp(){width=cap(width,10,120);length=cap(length,1,100);opacity=cap(opacity,0,255);red=cap(red,0,255);green=cap(green,0,255);blue=cap(blue,0,255);glowRadius=cap(glowRadius,1,24);glowStrength=cap(glowStrength,0,100);rainbowSeconds=cap(rainbowSeconds,1,30);pulseSeconds=cap(pulseSeconds,1,10);}
+ }
  public int systemPulseMs=30;
  public boolean blueAccent=false,smoothFont=true,reduceMotion=false,anchor=false,legitAnchor=false,safeAnchor=false,doubleAnchor=false,crystal=false,fastPlace=false,excludeAnchors=true;
  public AnchorOptions anchorOptions=new AnchorOptions();
@@ -53,6 +59,7 @@ public final class SakuraSettings {
  private static int old(JsonObject raw,String key,int fallback){return raw.has(key)?raw.get(key).getAsInt():fallback;}
  public void clamp(){
   systemPulseMs=cap(systemPulseMs,10,100);
+  if(outline==null)outline=new OutlineOptions();outline.clamp();
   if(anchorOptions==null)anchorOptions=new AnchorOptions();if(legitOptions==null)legitOptions=AnchorOptions.legit();
   if(safeOptions==null)safeOptions=new AnchorOptions();if(doubleOptions==null)doubleOptions=new AnchorOptions();
   anchorOptions.clamp();legitOptions.clamp();safeOptions.clamp();doubleOptions.clamp();

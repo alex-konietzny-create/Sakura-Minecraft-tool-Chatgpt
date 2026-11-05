@@ -25,6 +25,8 @@ public final class SakuraDetailsScreen extends Screen {
  private final List<NumberField> fields=new ArrayList<>();
  private int tab,section;
  private SmoothUi smooth;
+ private boolean animationReady,hasRendered;
+ private float smoothScale;
  private float scale,left,top,dt,rail;
  private long opened=System.nanoTime(),pageOpened=opened,lastFrame=opened,changedAt,noticeUntil;
  private boolean dirty;
@@ -37,11 +39,12 @@ public final class SakuraDetailsScreen extends Screen {
  SakuraDetailsScreen(int initial){this(initial,0);}
  SakuraDetailsScreen(int initial,int initialSection){super(Text.literal("Sakura Live"));tab=initial;section=initialSection;rail=104+tab*43;}
  @Override protected void init(){
-  if(smooth!=null)smooth.close();smooth=null;
+  animationReady=false;
   controls.clear();sliders.clear();fields.clear();capture=null;
   scale=Math.max(0.01f,Math.min(1.2f,Math.min((width-20f)/W,(height-20f)/H)));
   left=(width/scale-W)/2;top=(height/scale-H)/2;
-  if(s.smoothFont)smooth=new SmoothUi(scale);
+  if(smooth!=null&&(!s.smoothFont||smoothScale!=scale)){smooth.close();smooth=null;}
+  if(s.smoothFont&&smooth==null){smooth=new SmoothUi(scale);smoothScale=scale;}
   for(int i=0;i<7;i++){
    final int n=i;
    button(24,104+i*43,148,36,Skin.NAV,()->NAMES[n],()->SHORT[n],()->tab==n,i,()->select(n,0));
@@ -209,6 +212,7 @@ public final class SakuraDetailsScreen extends Screen {
  }
  @Override public void render(DrawContext c,int mouseX,int mouseY,float delta){
   PINK=s.blueAccent?0xFF35B5D8:0xFFFF78AB;
+  if(!animationReady){if(smooth!=null){smooth.scaled(1.3f);smooth.scaled(2.25f);}long start=System.nanoTime();if(!hasRendered)opened=start;pageOpened=lastFrame=start;animationReady=true;hasRendered=true;}
   long now=System.nanoTime();dt=Math.min(.1f,(now-lastFrame)/1_000_000_000f);lastFrame=now;
   float off=offset();int mx=(int)(mouseX/scale-left),my=(int)(mouseY/scale-top-off);
   if(smooth!=null)smooth.backdrop(c,width,height,PINK,s.reduceMotion);else c.fill(0,0,width,height,0xE00D0C12);
@@ -230,7 +234,7 @@ public final class SakuraDetailsScreen extends Screen {
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF7C7485);
-  label(c,"0.4.1 / FABRIC 1.21.11",29,551,0xFF7C7485);
+  label(c,"0.4.2 / FABRIC 1.21.11",29,551,0xFF7C7485);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   title(c,NAMES[tab],210,39,2.25f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);

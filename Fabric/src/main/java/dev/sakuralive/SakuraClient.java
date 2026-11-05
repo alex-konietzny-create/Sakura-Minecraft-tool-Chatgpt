@@ -19,7 +19,7 @@ import org.lwjgl.glfw.GLFW;
 /** Input arrives on ticks; timed actions run on the render thread, at most one per frame. */
 public final class SakuraClient implements ClientModInitializer {
  public static final SakuraSettings settings=SakuraSettings.load();
- public static KeyBinding anchorKey,legitKey,safeKey,doubleKey,crystalKey,fastKey,menuKey;
+ public static KeyBinding anchorKey,legitKey,safeKey,doubleKey,crystalKey,fastKey,menuKey,outlineKey;
  public static String lastStatus="Bereit";
  private static SakuraClient instance;
  private Run run;
@@ -46,6 +46,7 @@ public final class SakuraClient implements ClientModInitializer {
   anchorKey=bind("anchor",GLFW.GLFW_KEY_G,category);legitKey=bind("legit",GLFW.GLFW_KEY_UNKNOWN,category);
   safeKey=bind("safe",GLFW.GLFW_KEY_UNKNOWN,category);doubleKey=bind("double",GLFW.GLFW_KEY_UNKNOWN,category);
   crystalKey=bind("crystal",GLFW.GLFW_KEY_H,category);fastKey=bind("fastplace",GLFW.GLFW_KEY_J,category);
+  outlineKey=bind("outline",GLFW.GLFW_KEY_UNKNOWN,category);
   menuKey=bind("menu",GLFW.GLFW_KEY_RIGHT_SHIFT,category);
   ClientTickEvents.END_CLIENT_TICK.register(this::tick);
   ClientLifecycleEvents.CLIENT_STOPPING.register(mc->{if(inputs!=null)inputs.close();});
@@ -56,7 +57,7 @@ public final class SakuraClient implements ClientModInitializer {
   return KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sakuralive."+id,InputUtil.Type.KEYSYM,code,category));
  }
  public static KeyBinding keyFor(int mode){
-  return switch(mode){case 0->anchorKey;case 1->legitKey;case 2->safeKey;case 3->doubleKey;case 4->crystalKey;case 5->fastKey;default->menuKey;};
+  return switch(mode){case 0->anchorKey;case 1->legitKey;case 2->safeKey;case 3->doubleKey;case 4->crystalKey;case 5->fastKey;case 6->outlineKey;default->menuKey;};
  }
  public static SakuraSettings.AnchorOptions optionsFor(int mode){
   return switch(mode){case 1->settings.legitOptions;case 2->settings.safeOptions;case 3->settings.doubleOptions;default->settings.anchorOptions;};
@@ -72,16 +73,17 @@ public final class SakuraClient implements ClientModInitializer {
     &&mc.isWindowFocused()&&!mc.isPaused()&&mc.player.isAlive()&&!mc.player.isSpectator();
  }
  private void tick(MinecraftClient mc){
-  while(menuKey.wasPressed())mc.setScreen(new SakuraScreen());
+  while(Hotkeys.take(7)||menuKey.wasPressed())mc.setScreen(new SakuraScreen());
+  while(Hotkeys.take(6)||outlineKey.wasPressed()){settings.outline.enabled=!settings.outline.enabled;settings.save();}
   if(!ready(mc)){cancel(mc,"Menü / Spiel pausiert");drain();return;}
-  while(crystalKey.wasPressed()){toggle(4);settings.save();}
-  while(fastKey.wasPressed()){toggle(5);settings.save();}
-  for(int mode=0;mode<4;mode++)while(keyFor(mode).wasPressed()){
+  while(Hotkeys.take(4)||crystalKey.wasPressed()){toggle(4);settings.save();}
+  while(Hotkeys.take(5)||fastKey.wasPressed()){toggle(5);settings.save();}
+  for(int mode=0;mode<4;mode++)while(Hotkeys.take(mode)||keyFor(mode).wasPressed()){
    if(run!=null){cancel(mc,"Per Hotkey abgebrochen");continue;}
    if(enabled(mode))start(mc,mode);
   }
  }
- private void drain(){for(int i=0;i<6;i++)while(keyFor(i).wasPressed()){}}
+ private void drain(){Hotkeys.clear();for(int i=0;i<6;i++)while(keyFor(i).wasPressed()){}}
  private void start(MinecraftClient mc,int mode){
   if(!(mc.crosshairTarget instanceof BlockHitResult hit)||hit.getType()!=HitResult.Type.BLOCK
      ||!mc.player.canInteractWithBlockAt(hit.getBlockPos(),0)){lastStatus="Kein erreichbarer Block anvisiert";return;}
@@ -96,6 +98,7 @@ public final class SakuraClient implements ClientModInitializer {
   run=r;world=mc.world;player=mc.player;clearCrystal();lastStatus="Anchor gestartet";
  }
  public static void frame(MinecraftClient mc){
+  if(net.fabricmc.loader.api.FabricLoader.getInstance().isDevelopmentEnvironment()&&Boolean.getBoolean("sakura.uiSmoke"))SakuraUiSmoke.frame(mc);
   if(instance==null)return;
   try{instance.advance(mc);}catch(RuntimeException|LinkageError e){
    instance.run=null;lastStatus="Systemeingabe angehalten: "+e.getMessage();
@@ -107,13 +110,13 @@ public final class SakuraClient implements ClientModInitializer {
   try{if(inputs==null)inputs=new WindowsSystemInput(mc,()->ready(mc));}
   catch(Exception|LinkageError e){inputError="Systemeingaben nicht verfügbar: "+e.getMessage();lastStatus=inputError;return false;}
   if(!inputs.available()){lastStatus=inputs.status();return false;}
-  for(int i=0;i<6;i++)if(!keyFor(i).isUnbound()&&(keyFor(i).equals(mc.options.useKey)||keyFor(i).equals(mc.options.attackKey))){lastStatus="Makro-Hotkey kollidiert mit Benutzen / Angriff";return false;}
+  for(int i=0;i<7;i++)if(!keyFor(i).isUnbound()&&(keyFor(i).equals(mc.options.useKey)||keyFor(i).equals(mc.options.attackKey))){lastStatus="Makro-Hotkey kollidiert mit Benutzen / Angriff";return false;}
   return inputs.foreground();
  }
  private boolean slotInput(MinecraftClient mc,int slot,long now){
   var key=mc.options.hotbarKeys[slot];
   if(key.equals(mc.options.useKey)||key.equals(mc.options.attackKey))throw new IllegalArgumentException("Hotbar-Taste kollidiert mit Benutzen / Angriff");
-  for(int i=0;i<6;i++)if(!keyFor(i).isUnbound()&&key.equals(keyFor(i)))throw new IllegalArgumentException("Hotbar-Taste kollidiert mit einem Makro");
+  for(int i=0;i<7;i++)if(!keyFor(i).isUnbound()&&key.equals(keyFor(i)))throw new IllegalArgumentException("Hotbar-Taste kollidiert mit einem Makro");
   return inputs.tap(key,now,settings.systemPulseMs);
  }
  private void advance(MinecraftClient mc){
