@@ -20,7 +20,9 @@ public final class SakuraScreen extends Screen {
  private final List<Field> fields=new ArrayList<>();
  private final List<Card> cards=new ArrayList<>();
  private int page;
- private float scale,left,top,dt;
+ private float scale,left,top,dt,navY;
+ private long pageOpened=System.nanoTime();
+ private final Map<Integer,float[]> cardMotion=new HashMap<>();
  private long opened=System.nanoTime(),last=opened,dirtyAt,noticeUntil;
  private boolean dirty;
  private String notice="";
@@ -30,7 +32,7 @@ public final class SakuraScreen extends Screen {
  private record Field(TextFieldWidget widget,IntSupplier get,int min,int max,String hint){}
  private record Card(int x,int y,int module,String title,String initials,String description){}
  public SakuraScreen(){this(1);}
- SakuraScreen(int page){super(Text.literal("Sakura Live"));this.page=page;}
+ SakuraScreen(int page){super(Text.literal("Sakura Live"));this.page=page;navY=page==3?242:83+page*43;}
  private int accent(){return s.blueAccent?0xFF35B5D8:0xFFEF72AB;}
  private Text ui(String value){return s.smoothFont?Text.literal(value).setStyle(Style.EMPTY.withFont(new StyleSpriteSource.Font(Identifier.of("sakuralive","grid")))):Text.literal(value);}
  private int tw(String value){return textRenderer.getWidth(ui(value));}
@@ -59,7 +61,7 @@ public final class SakuraScreen extends Screen {
    button(240,368,276,30,Kind.KEY,()->"Menü: "+keyName(SakuraClient.menuKey),()->capture=SakuraClient.menuKey,()->false,"Menü-Hotkey ändern");
   }
  }
- private void select(int next){flush();page=next;clearAndInit();}
+ private void select(int next){flush();page=next;pageOpened=System.nanoTime();cardMotion.clear();clearAndInit();}
  private void card(int x,int y,int module,String title,String initials,String description){
   cards.add(new Card(x,y,module,title,initials,description));
   button(x+62,y+15,198,35,Kind.TITLE,()->title,()->details(module),()->false,"Alle Einstellungen für "+title+" öffnen");
@@ -108,7 +110,7 @@ public final class SakuraScreen extends Screen {
  }
  private void button(int x,int y,int w,int h,Kind kind,Supplier<String> text,Runnable action,BooleanSupplier on,String hint){
   var widget=addDrawableChild(ButtonWidget.builder(Text.literal(text.get()),b->action.run()).dimensions(x,y,w,h).build());
-  controls.add(new Control(widget,kind,text,action,on,hint,new float[]{0}));
+  controls.add(new Control(widget,kind,text,action,on,hint,new float[]{0,on.getAsBoolean()?1:0,0}));
  }
  private void changed(){dirty=true;dirtyAt=System.nanoTime();flush();}
  private void flush(){if(!dirty)return;boolean ok=s.save();dirty=!ok;notice=ok?"Saved":"Save failed";noticeUntil=System.nanoTime()+1_500_000_000L;}
@@ -118,7 +120,12 @@ public final class SakuraScreen extends Screen {
   if(capture!=null){if(input.key()==GLFW.GLFW_KEY_ESCAPE){capture=null;return true;}assign(input.key()==GLFW.GLFW_KEY_DELETE||input.key()==GLFW.GLFW_KEY_BACKSPACE?InputUtil.UNKNOWN_KEY:InputUtil.fromKeyCode(input));return true;}
   if(input.key()==GLFW.GLFW_KEY_ENTER)flush();return super.keyPressed(input);
  }
- private float offset(){float t=s.reduceMotion?1:Math.min(1,(System.nanoTime()-opened)/220_000_000f);return 9*(1-t)*(1-t);}
+ private float offset(){return 18*(1-ease(progress(opened,320)));}
+ private float progress(long start,int ms){return s.reduceMotion?1:Math.max(0,Math.min(1,(System.nanoTime()-start)/(ms*1_000_000f)));}
+ private static float ease(float t){return 1-(float)Math.pow(1-t,3);}
+ private float approach(float from,float to,float speed){return s.reduceMotion?to:from+(to-from)*(1-(float)Math.exp(-dt*speed));}
+ private static int mix(int a,int b,float t){t=Math.max(0,Math.min(1,t));int out=0;for(int shift=0;shift<=24;shift+=8)out|=Math.round(((a>>>shift)&255)*(1-t)+((b>>>shift)&255)*t)<<shift;return out;}
+ private float cardOffset(int module){return 12*(1-ease(progress(pageOpened+(module%4)*35_000_000L,300)));}
  private Click local(Click c){return new Click(c.x()/scale-left,c.y()/scale-top-offset(),c.buttonInfo());}
  @Override public boolean mouseClicked(Click c,boolean doubled){if(capture!=null){assign(InputUtil.Type.MOUSE.createFromCode(c.button()));return true;}return super.mouseClicked(local(c),doubled);}
  @Override public boolean mouseReleased(Click c){boolean done=super.mouseReleased(local(c));flush();return done;}
@@ -151,22 +158,37 @@ public final class SakuraScreen extends Screen {
   int mx=(int)(mouseX/scale-left),my=(int)(mouseY/scale-top-offset());
   c.fill(0,0,width,height,0xB0000000);c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);c.getMatrices().translate(left,top+offset());
   round(c,0,0,W,H,9,0xFF1A2030);round(c,1,1,W-2,H-2,8,0xFF090C15);
+  navY=approach(navY,page==3?242:83+page*43,16);
   c.fill(1,29,197,H-1,0xFF0B0E18);c.fill(197,29,198,H-1,0xFF1A2030);c.fill(1,28,W-1,29,0xFF1C2230);
   bold(c,"SAKURA",14,8,accent());text(c,"LIVE",66,8,INK);c.fill(102,6,103,21,0xFF293043);text(c,"Pink Client",115,8,MUTED);
   text(c,"MACROS",17,57,0xFF677086);text(c,"OTHER",17,215,0xFF677086);
+  round(c,7,Math.round(navY),182,35,5,s.blueAccent?0xFF102A38:0xFF2B1A29);
+  round(c,7,Math.round(navY)+8,3,19,1,accent());
   String title=page==1?"Anchor Macros":page==0?"Crystal Macros":page==2?"Utility Macros":"Themes";
   c.getMatrices().pushMatrix();c.getMatrices().translate(222,62);c.getMatrices().scale(1.65f,1.65f);bold(c,title,0,0,INK);c.getMatrices().popMatrix();
   text(c,page==3?"Choose your accent and interface options.":"Configure your "+(page==1?"anchor":page==0?"crystal":"utility")+" macros",222,89,MUTED);
   if(page==3)panel(c,222,119,318,321);
   for(var card:cards){
-   int x=card.x,y=card.y;panel(c,x,y,318,218);
+   int x=card.x,y=card.y;
+   c.getMatrices().pushMatrix();c.getMatrices().translate(0,cardOffset(card.module));
+   var motion=cardMotion.computeIfAbsent(card.module,k->new float[]{0,0});
+   boolean over=mx>=x&&mx<x+318&&my>=y&&my<y+218;
+   motion[0]=approach(motion[0],over?1:0,12);
+   motion[1]=approach(motion[1],SakuraClient.enabled(card.module)?1:0,10);
+   round(c,x,y,318,218,10,mix(0xFF202637,mix(0xFF344055,accent(),.24f),motion[0]));
+   round(c,x+1,y+1,316,216,9,mix(0xFF101622,0xFF151D2C,motion[0]));
+   round(c,x+16,y+17,3,37,1,mix(0xFF263044,accent(),motion[1]));
    round(c,x+17,y+17,37,37,7,0xFF1B2333);c.drawStrokedRectangle(x+19,y+19,33,33,0xFF29354B);
    bold(c,card.initials,x+25,y+29,accent());
    text(c,fit(card.description,228),x+63,y+38,MUTED);
    text(c,"Keybind",x+18,y+79,MUTED);
+   c.getMatrices().popMatrix();
   }
   for(var field:fields){
-   var w=field.widget;int row=w.getY()-2,x=w.getX()-215;
+   var w=field.widget;
+   int fieldModule=cards.stream().filter(card->w.getX()>=card.x&&w.getX()<card.x+318&&w.getY()>=card.y&&w.getY()<card.y+218).mapToInt(Card::module).findFirst().orElse(0);
+   c.getMatrices().pushMatrix();c.getMatrices().translate(0,cardOffset(fieldModule));
+   int row=w.getY()-2,x=w.getX()-215;
    String[] description=labels.get(row*1000+x).split("\\|",-1);
    text(c,description[0],x+18,row+4,MUTED);
    int bw=description[1].isEmpty()?86:60;
@@ -181,32 +203,39 @@ public final class SakuraScreen extends Screen {
     int cursor=Math.max(0,Math.min(value.length(),w.getCursor()));
     int caret=w.getX()+1+tw(value.substring(0,cursor));c.fill(caret,w.getY()+1,caret+1,w.getY()+14,INK);
    }
+   c.getMatrices().popMatrix();
   }
   String hint="";
   for(var p:controls){
    var w=p.widget;int x=w.getX(),y=w.getY(),bw=w.getWidth(),bh=w.getHeight();boolean over=w.isMouseOver(mx,my)||w.isFocused(),on=p.selected.getAsBoolean();
-   p.hover[0]+=( (over?1:0)-p.hover[0])*(s.reduceMotion?1:1-(float)Math.exp(-dt*15));
+   p.hover[0]=approach(p.hover[0],over?1:0,16);
+   p.hover[1]=approach(p.hover[1],on?1:0,14);
+   if(x>=222&&page!=3){
+    int module=cards.stream().filter(card->x>=card.x&&x<card.x+318&&y>=card.y&&y<card.y+218).mapToInt(Card::module).findFirst().orElse(0);
+    c.getMatrices().pushMatrix();c.getMatrices().translate(0,cardOffset(module));
+   }
+   float hover=p.hover[0],active=p.hover[1];
    String value=p.text.get();w.setMessage(Text.literal(value+". "+p.hint));if(over)hint=p.hint;
    if(p.kind==Kind.NAV){
-    if(on||over)round(c,x,y,bw,bh,4,on?(s.blueAccent?0xFF0D2836:0xFF2B1A29):0xFF141B29);
-    if(on)c.fill(x,y+8,x+2,y+bh-8,accent());
-    icon(c,x+14,y+10,value,on?accent():0xFF737D91);
-    text(c,value,x+36,y+11,on?accent():MUTED);
+    if(!on&&hover>.01f)round(c,x,y,bw,bh,4,mix(0xFF0B0E18,0xFF172030,hover));
+    icon(c,x+14,y+10,value,mix(0xFF737D91,accent(),active));
+    text(c,value,x+36,y+11,mix(MUTED,accent(),active));
    }else if(p.kind==Kind.POWER){
-    round(c,x,y,bw,bh,10,on?0xFF313348:0xFF222A3C);
-    c.fill(x+10,y+3,x+12,y+10,on?accent():0xFF7A8497);
-    // Open ring constructed from short strokes, independent of missing font symbols.
-    c.fill(x+5,y+7,x+7,y+14,on?accent():0xFF7A8497);c.fill(x+15,y+7,x+17,y+14,on?accent():0xFF7A8497);c.fill(x+7,y+14,x+15,y+16,on?accent():0xFF7A8497);
+    // A real tween drives track color and thumb position on every frame.
+    round(c,x-7,y+3,29,16,8,mix(0xFF30394C,accent(),active));
+    int thumb=Math.round(x-4+active*12);
+    round(c,thumb,y+6,10,10,5,mix(0xFF8B95A8,0xFFFFFFFF,active));
    }else if(p.kind==Kind.TITLE)bold(c,value,x,y+3,INK);
    else{
-    round(c,x,y,bw,bh,5,over||on?0xFF292B43:0xFF1A2231);
-    String shown=fit(value,bw-10);text(c,shown,x+(bw-tw(shown))/2,y+(bh-10)/2,p.kind==Kind.KEY?INK:over||on?accent():MUTED);
+    round(c,x,y,bw,bh,5,mix(0xFF1A2231,0xFF30354A,Math.max(hover,active*.6f)));
+    String shown=fit(value,bw-10);text(c,shown,x+(bw-tw(shown))/2,y+(bh-10)/2,p.kind==Kind.KEY?INK:mix(MUTED,accent(),Math.max(hover,active)));
    }
    if(w.isFocused())c.drawStrokedRectangle(x-1,y-1,bw+2,bh+2,accent());
+   if(x>=222&&page!=3)c.getMatrices().popMatrix();
   }
   c.fill(9,530,187,531,0xFF1E2635);round(c,13,547,33,33,16,0xFF263044);bold(c,"SL",22,558,accent());round(c,39,572,7,7,3,0xFF45C6A0);
   text(c,"Sakura Live",55,551,INK);text(c,"LOCAL CONFIG",55,569,0xFF647088);
-  text(c,"Sakura 0.3.2",222,581,MUTED);
+  text(c,"Sakura 0.3.3",222,581,MUTED);
   String status=now<noticeUntil?notice:hint.isEmpty()?"Settings saved locally · macros pause while this menu is open":hint;
   text(c,fit(status,555),W-18-Math.min(555,tw(status)),581,now<noticeUntil?accent():0xFF707B91);
   if(capture!=null){
@@ -217,3 +246,4 @@ public final class SakuraScreen extends Screen {
   c.getMatrices().popMatrix();
  }
 }
+

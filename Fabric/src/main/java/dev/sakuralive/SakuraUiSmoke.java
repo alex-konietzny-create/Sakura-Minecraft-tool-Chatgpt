@@ -14,6 +14,7 @@ final class SakuraUiSmoke {
  private static final int[] PAGES={1,0,2,3,1};
  private static int stage=-1,wait=60;
  private static boolean tested;
+ private static int animationFrame=-1;
  private static void check(boolean yes,String why){if(!yes)throw new IllegalStateException("Grid UI: "+why);}
  private static Click pointer(SakuraScreen s,double x,double y,int b){
   double scale=Math.max(.01,Math.min(1.2,Math.min((s.width-20.0)/920,(s.height-20.0)/600)));
@@ -84,8 +85,16 @@ final class SakuraUiSmoke {
     stage++;if(stage<NAMES.length){SakuraClient.settings.blueAccent=stage==4;mc.setScreen(new SakuraScreen(PAGES[stage]));}wait=40;return;
    }
    for(var name:NAMES){var file=new File(mc.runDirectory,"screenshots/sakura-"+name+".png");check(file.isFile()&&file.length()>0,"screenshot "+name);}
-   System.out.println("[Sakura UI smoke] Grid pages rendered successfully. No gameplay test.");
+   if(animationFrame==-1)System.out.println("[Sakura UI smoke] Grid pages rendered successfully. No gameplay test.");
+   if(animationFrame==-1){SakuraClient.settings.reduceMotion=false;SakuraClient.settings.blueAccent=false;mc.setScreen(new SakuraScreen(1));animationFrame=0;wait=0;return;}
+   if(animationFrame<18){
+    if(animationFrame==3||animationFrame==10)SakuraClient.toggle(0);
+    ScreenshotRecorder.saveScreenshot(mc.runDirectory,String.format("sakura-motion-%02d.png",animationFrame),mc.getFramebuffer(),1,t->{});
+    animationFrame++;wait=0;return;
+   }
+   System.out.println("[Sakura UI smoke] PASS: captured 18 live animation frames.");
    mc.scheduleStop();wait=Integer.MAX_VALUE;
   });
  }
 }
+
