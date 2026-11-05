@@ -270,7 +270,7 @@ public final class SakuraScreen extends Screen {
   }
   c.fill(9,530,187,531,0xFF1E2635);round(c,13,547,33,33,16,0xFF27364F);bold(c,client.getSession().getUsername().substring(0,Math.min(2,client.getSession().getUsername().length())).toUpperCase(java.util.Locale.ROOT),20,558,accent());round(c,39,572,7,7,3,0xFF45C6A0);
   text(c,fit(client.getSession().getUsername(),128),55,551,INK);text(c,"Minecraft-Profil",55,569,MUTED);
-  text(c,"Sakura 0.6.1",222,581,MUTED);
+  text(c,"Sakura 0.6.2",222,581,MUTED);
   String status=now<noticeUntil?notice:hint.isEmpty()?("Bereit".equals(SakuraClient.lastStatus)?"Settings saved locally · macros pause while this menu is open":"Letzter Ablauf: "+SakuraClient.lastStatus):hint;
   text(c,fit(status,555),W-18-Math.min(555,tw(status)),581,now<noticeUntil?accent():0xFF707B91);
   if(capture!=null){

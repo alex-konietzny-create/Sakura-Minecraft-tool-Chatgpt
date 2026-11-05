@@ -7,6 +7,10 @@ final class CameraMotion {
  private int pendingX,pendingY;
  private long awaitingSince;
  void reset(){last=sentAt=awaitingSince=0;pendingX=pendingY=0;gainX=gainY=0;}
+ private static double filteredGain(double current,double base,double measured){
+  if(measured<current*.3||measured>current*3)return current; // physical mouse disturbance is not pointer gain
+  return current*.85+Math.max(base*.25,Math.min(base*8,measured))*.15;
+ }
  static double wrap(double angle){angle%=360;if(angle>=180)angle-=360;if(angle< -180)angle+=360;return angle;}
  Step step(double yaw,double pitch,double targetYaw,double targetPitch,double sensitivity,boolean invertX,boolean invertY,int speed,long now){
   double base=Math.pow(sensitivity*.6+.2,3)*1.2;
@@ -16,15 +20,15 @@ final class CameraMotion {
    if(Math.abs(actualX)+Math.abs(actualY)<.001){
     if(now-sentAt<50_000_000L)return new Step(0,0,now-awaitingSince>500_000_000L);
    }else{
-    if(Math.abs(pendingX)>1&&actualX*pendingX>0)gainX=Math.max(base*.25,Math.min(base*8,Math.abs(actualX/pendingX)));
-    if(Math.abs(pendingY)>1&&actualY*pendingY>0)gainY=Math.max(base*.25,Math.min(base*8,Math.abs(actualY/pendingY)));
+    if(Math.abs(pendingX)>1&&actualX*pendingX>0)gainX=filteredGain(gainX,base,Math.abs(actualX/pendingX));
+    if(Math.abs(pendingY)>1&&actualY*pendingY>0)gainY=filteredGain(gainY,base,Math.abs(actualY/pendingY));
     awaitingSince=0;
    }
   }
   if(awaitingSince!=0&&now-awaitingSince>500_000_000L)return new Step(0,0,true);
   double dt=last==0?1.0/120:Math.min(.05,Math.max(.001,(now-last)/1e9));last=now;
   double ex=wrap(targetYaw-yaw),ey=Math.max(-89.5,Math.min(89.5,targetPitch))-pitch;
-  double length=Math.hypot(ex,ey),limit=speed*dt;
+  double length=Math.hypot(ex,ey),limit=speed*dt*Math.min(1,Math.sqrt(length/12));
   double fraction=length>limit?limit/length:1;
   // Approach conservatively; measured view changes compensate pointer acceleration.
   int dx=(int)Math.round(ex*fraction*.7/gainX)*(invertX?-1:1),dy=(int)Math.round(ey*fraction*.7/gainY)*(invertY?-1:1);

@@ -92,6 +92,7 @@ public final class SakuraDetailsScreen extends Screen {
    slots(276,()->o.anchorSlot,n->o.anchorSlot=n,"Anchor-Slot");
    slots(348,()->o.glowSlot,n->o.glowSlot=n,"Glowstone-Slot");
    slots(420,()->o.finalSlot,n->o.finalSlot=n,"Finaler Slot");
+    toggle(230,480,378,"Items automatisch finden",()->o.autoSlots,()->o.autoSlots=!o.autoSlots);
   }else{
    button(230,255,378,36,Skin.KEY,()->keyName(SakuraClient.keyFor(tab)),()->"Klicken und Taste oder Maustaste drücken",()->false,0,()->capture=SakuraClient.keyFor(tab));
    if(tab<4){
@@ -249,7 +250,7 @@ public final class SakuraDetailsScreen extends Screen {
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF9EADC7);
-  label(c,"0.6.1 / FABRIC 1.21.11",29,551,0xFF9EADC7);
+  label(c,"0.6.2 / FABRIC 1.21.11",29,551,0xFF9EADC7);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   ModuleArt.draw(c,tab,210,40,1.8f);title(c,NAMES[tab],248,39,1.9f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);
@@ -271,7 +272,7 @@ public final class SakuraDetailsScreen extends Screen {
     label(c,"Anchor",230,257,INK);label(c,"Glowstone",230,329,INK);label(c,"Finaler Slot · kein Totem erforderlich",230,401,INK);
    }else if(tab<4&&section==((tab==2||tab==3)?4:3)){
     small(c,"Slot-Taste und Benutzen werden gemeinsam gesendet.",230,438,MUTED,378);
-    small(c,"Aktiv bei 0 ms Slot-Vorbereitung.",230,465,MUTED,378);
+    small(c,"Bei 0 ms und unter 50 ms Ping; sonst Slot einzeln bestätigen.",230,465,MUTED,378);
    }else if((tab==2||tab==3)&&section==3){
     small(c,"Loslassen beendet Wiederholungen; Esc bricht ab.",230,493,MUTED,378);
    }else if(section>0){

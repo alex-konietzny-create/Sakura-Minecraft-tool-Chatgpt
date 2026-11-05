@@ -35,6 +35,7 @@ public final class SakuraOutlineScreen extends Screen {
   row(25,226,"Linienlänge %",()->o.length,n->o.length=n,1,100,1);
   row(25,292,"Deckkraft",()->o.opacity,n->o.opacity=n,0,255,1);
   button(42,363,243,34,()->"Ecken: "+(o.corners?"AN":"AUS"),()->o.corners,()->{o.corners=!o.corners;changed();});
+  button(42,420,243,30,()->"3D-Kanten durch Block: "+(o.throughBlock?"AN":"AUS"),()->o.throughBlock,()->{o.throughBlock=!o.throughBlock;changed();});
   row(327,160,"Rot",()->o.red,n->o.red=n,0,255,1);
   row(327,226,"Grün",()->o.green,n->o.green=n,0,255,1);
   row(327,292,"Blau",()->o.blue,n->o.blue=n,0,255,1);
@@ -92,23 +93,23 @@ public final class SakuraOutlineScreen extends Screen {
   }
   preview(c,680,37,now);
   text(c,"Vorschau oben · AUS stellt die normale Minecraft-Markierung wieder her.",25,544,0xFFC9C7D0);
-  text(c,"Änderungen werden automatisch gespeichert · Sakura 0.6.1",25,570,0xFF7C8190);
+  text(c,"Änderungen werden automatisch gespeichert · Sakura 0.6.2",25,570,0xFF7C8190);
   if(capture){ui.round(c,240,230,440,120,12,0xFA16141B);text(c,"Taste oder Maustaste drücken",265,261,0xFFF4EBF1);text(c,"Esc: abbrechen · Entf: entfernen",265,300,0xFFC9C7D0);}
   c.getMatrices().popMatrix();
  }
  private void preview(DrawContext c,int x,int y,long now){
   int color=(Math.round(o.opacity*BlockOutline.pulse(o,now))<<24)|BlockOutline.rgb(o,now);
+  OutlineGeometry.Segment segment=(ax,ay,az,bx,by,bz)->{
+   float x1=x+(float)((ax-az)*31),y1=y+(float)((ax+az)*12+(1-ay)*31),x2=x+(float)((bx-bz)*31),y2=y+(float)((bx+bz)*12+(1-by)*31);
+   double len=Math.hypot(x2-x1,y2-y1);float angle=(float)Math.atan2(y2-y1,x2-x1);
+   c.getMatrices().pushMatrix();c.getMatrices().translate(x1,y1);c.getMatrices().rotate(angle);
+   if(o.glow)ui.glow(c,-o.glowRadius,-o.glowRadius,(int)len+o.glowRadius*2,o.glowRadius*2,((o.glowStrength*2)<<24)|(color&0xFFFFFF));
+   ui.round(c,0,0,Math.max(1,(int)len),Math.max(1,Math.round(o.width/10f)),1,color);c.getMatrices().popMatrix();
+  };
   double[][] p={{0,0,0},{1,0,0},{0,1,0},{1,1,0},{0,0,1},{1,0,1},{0,1,1},{1,1,1}};
-  for(int i=0;i<8;i++)for(int axis=0;axis<3;axis++){int j=i^(1<<axis);if(j<i)continue;double[] a=p[i],b=p[j];
-   OutlineGeometry.edge(a[0],a[1],a[2],b[0],b[1],b[2],o.length/100.0,o.corners,(ax,ay,az,bx,by,bz)->{
-    float x1=x+(float)((ax-az)*31),y1=y+(float)((ax+az)*12+(1-ay)*31),x2=x+(float)((bx-bz)*31),y2=y+(float)((bx+bz)*12+(1-by)*31);
-    double len=Math.hypot(x2-x1,y2-y1);float angle=(float)Math.atan2(y2-y1,x2-x1);
-    c.getMatrices().pushMatrix();c.getMatrices().translate(x1,y1);c.getMatrices().rotate(angle);
-    if(o.glow)ui.glow(c,-o.glowRadius,-o.glowRadius,(int)len+o.glowRadius*2,o.glowRadius*2,((o.glowStrength*2)<<24)|(color&0xFFFFFF));
-    ui.round(c,0,0,Math.max(1,(int)len),Math.max(1,Math.round(o.width/10f)),1,color);c.getMatrices().popMatrix();
-   });
-  }
+  for(int i=0;i<8;i++)for(int axis=0;axis<3;axis++){int j=i^(1<<axis);if(j<i)continue;double[] a=p[i],b=p[j];OutlineGeometry.edge(a[0],a[1],a[2],b[0],b[1],b[2],o.length/100.0,o.corners,segment);}
  }
+
  private final class OptionSlider extends SliderWidget {
   final String label;final IntSupplier get;final IntConsumer set;final int min,max;
   OptionSlider(int x,int y,int w,String label,IntSupplier get,IntConsumer set,int min,int max){super(x,y,w,49,Text.literal(label),(get.getAsInt()-min)/(double)(max-min));this.label=label;this.get=get;this.set=set;this.min=min;this.max=max;}

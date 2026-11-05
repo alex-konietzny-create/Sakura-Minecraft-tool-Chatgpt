@@ -63,6 +63,7 @@ final class SakuraUiSmoke {
  private static void verify(MinecraftClient mc){
   try{Class.forName("net.minecraft.client.network.ClientPlayerInteractionManager");}catch(ClassNotFoundException e){throw new IllegalStateException(e);}
   System.out.println("[Sakura UI smoke] PASS: Minecraft interaction manager with guard mixin loaded");
+  InteriorLines.layer();
   verifyFirePlacement();
   var s=SakuraClient.settings;boolean motion=s.reduceMotion,anchor=s.anchor,blue=s.blueAccent;
   boolean holdRepeat=s.anchorOptions.repeatWhileHeld;
@@ -90,6 +91,10 @@ final class SakuraUiSmoke {
   var key=SakuraClient.anchorKey;var original=InputUtil.fromTranslationKey(key.getBoundKeyTranslationKey());
   var screen=new SakuraScreen(1);mc.setScreen(screen);click(screen,475,203);
   var input=new KeyInput(GLFW.GLFW_KEY_F8,0,0);screen.keyPressed(input);check(key.matchesKey(input),"key capture");
+  try{check(java.nio.file.Files.readString(mc.runDirectory.toPath().resolve("options.txt")).contains("key_key.sakuralive.anchor:key.keyboard.f8"),"new keyboard binding persisted in Minecraft options");}catch(java.io.IOException e){throw new IllegalStateException(e);}
+  Hotkeys.clear();boolean anchorEnabled=s.anchor;s.anchor=true;
+  check(Hotkeys.route(i->SakuraClient.keyFor(i).matchesKey(input),GLFW.GLFW_PRESS,true)&&Hotkeys.take(0),"new key routes actual macro");
+  Hotkeys.route(i->i==0,GLFW.GLFW_RELEASE,true);Hotkeys.clear();s.anchor=anchorEnabled;
   click(screen,475,203);screen.keyPressed(new KeyInput(GLFW.GLFW_KEY_ESCAPE,0,0));check(key.matchesKey(input),"capture cancellation");
   click(screen,475,203);var mouse=pointer(screen,0,0,3);screen.mouseClicked(mouse,false);check(key.matchesMouse(mouse),"mouse capture");
   key.setBoundKey(original);KeyBinding.updateKeysByCode();mc.options.write();
@@ -125,7 +130,10 @@ final class SakuraUiSmoke {
   outline.mouseClicked(p,false);check(outline.getFocused() instanceof TextFieldWidget,"outline RGB field focus");
   ((TextFieldWidget)outline.getFocused()).setText("123");outline.keyPressed(new KeyInput(GLFW.GLFW_KEY_ENTER,0,0));
   check(s.outline.red==123&&SakuraSettings.load().outline.red==123,"outline RGB persistence");
-  s.outline.red=red;s.save();outline.close();
+  boolean through=s.outline.throughBlock;
+  var throughClick=new Click(lx+outlineScale*160,ly+outlineScale*435,new MouseInput(0,0));outline.mouseClicked(throughClick,false);outline.mouseReleased(throughClick);
+  check(s.outline.throughBlock!=through&&SakuraSettings.load().outline.throughBlock==s.outline.throughBlock,"3D block edges toggle persists");
+  s.outline.red=red;s.outline.throughBlock=through;s.save();outline.close();
   var cameraScreen=new SakuraDetailsScreen(2,3);mc.setScreen(cameraScreen);
   double cs=Math.max(.01,Math.min(1.2,Math.min((cameraScreen.width-20.0)/920,(cameraScreen.height-20.0)/580)));
   var cp=new Click((cameraScreen.width-cs*920)/2+550*cs,(cameraScreen.height-cs*580)/2+357*cs,new MouseInput(0,0));

@@ -10,7 +10,7 @@ public final class SakuraSettings {
  public int schemaVersion=4;
  public OutlineOptions outline=new OutlineOptions();
  public static final class OutlineOptions {
-  public boolean enabled=false,glow=true,rainbow=false,pulse=false,corners=false;
+  public boolean enabled=false,glow=true,rainbow=false,pulse=false,corners=false,throughBlock=false;
   public int width=25,length=100,opacity=230,red=255,green=105,blue=170,glowRadius=8,glowStrength=45,rainbowSeconds=8,pulseSeconds=3;
   void clamp(){width=cap(width,10,120);length=cap(length,1,100);opacity=cap(opacity,0,255);red=cap(red,0,255);green=cap(green,0,255);blue=cap(blue,0,255);glowRadius=cap(glowRadius,1,24);glowStrength=cap(glowStrength,0,100);rainbowSeconds=cap(rainbowSeconds,1,30);pulseSeconds=cap(pulseSeconds,1,10);}
  }
@@ -24,7 +24,7 @@ public final class SakuraSettings {
  public static final class AnchorOptions {
   public int anchorSlot=1,glowSlot=2,finalSlot=9;
   public int placeMs=25,chargeMs=25,switchMs=0,coverMs=25,repeatMs=75,timeoutMs=2000;
-  public boolean autoCamera=true,repeatWhileHeld=true,bundledInput=true;
+  public boolean autoSlots=true,autoCamera=true,repeatWhileHeld=true,bundledInput=true;
   public int cameraSpeed=900;
   public void speed(int profile){placeMs=chargeMs=coverMs=profile==0?0:profile==1?25:150;switchMs=profile==2?35:0;repeatMs=profile==0?0:profile==1?75:200;}
   public void actionDelay(int value){placeMs=chargeMs=coverMs=repeatMs=value;switchMs=Math.min(switchMs,value/2);}

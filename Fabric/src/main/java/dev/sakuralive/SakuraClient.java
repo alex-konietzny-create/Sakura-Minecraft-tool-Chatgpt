@@ -48,7 +48,8 @@ public final class SakuraClient implements ClientModInitializer {
   int previousRaw=-1;
   final RepeatGate repeats=new RepeatGate();
   final InteractionGate useGate=new InteractionGate();
-  boolean repeating,batched,interactionRefused;
+  boolean repeating,batched,interactionRefused,aimDrift;
+  net.minecraft.block.BlockState confirmedAnchor,confirmedCover;
   AnchorPlan.Action sentAction=AnchorPlan.Action.NONE;
   int sentSlot=-1;
  }
@@ -109,7 +110,7 @@ public final class SakuraClient implements ClientModInitializer {
   var r=new Run();r.started=System.nanoTime();r.mode=mode;r.options=optionsFor(mode);r.key=keyFor(mode);
   r.original=r.expected=mc.player.getInventory().getSelectedSlot();
   r.pos=existing?hit.getBlockPos().toImmutable():PlacementGeometry.destination(mc.world,hit).toImmutable();
-  r.cover=coverPosition(mc,r.pos);
+  r.cover=coverPosition(mc,r.pos);r.confirmedAnchor=mc.world.getBlockState(r.pos);r.confirmedCover=mc.world.getBlockState(r.cover);
   var o=r.options;
   r.plan=new AnchorPlan(existing,existing?state.get(RespawnAnchorBlock.CHARGES):0,mode==2,mode==3?2:1,
     new AnchorPlan.Timings(o.placeMs,o.chargeMs,o.coverMs,o.repeatMs,mode==2&&o.autoCamera?Math.max(o.timeoutMs,180000/o.cameraSpeed+1000):o.timeoutMs),System.nanoTime());
@@ -137,6 +138,8 @@ public final class SakuraClient implements ClientModInitializer {
   for(int i=0;i<8;i++)if(Hotkeys.eligible(i)&&!keyFor(i).isUnbound()&&key.equals(keyFor(i)))throw new IllegalArgumentException("Hotbar-Taste kollidiert mit einem Makro");
   return key;
  }
+ private static int latency(MinecraftClient mc){var entry=mc.getNetworkHandler()==null?null:mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid());return entry==null?0:entry.getLatency();}
+ public static void confirmedBlock(net.minecraft.util.math.BlockPos pos,net.minecraft.block.BlockState state){if(instance==null||instance.run==null)return;var r=instance.run;if(pos.equals(r.pos))r.confirmedAnchor=state;if(pos.equals(r.cover))r.confirmedCover=state;}
  private boolean slotInput(MinecraftClient mc,int slot,long now){return inputs.tap(slotBinding(mc,slot),now,settings.systemPulseMs);}
  private void advance(MinecraftClient mc){
   long now=System.nanoTime();
@@ -171,9 +174,10 @@ public final class SakuraClient implements ClientModInitializer {
   }
   if(selected!=r.expected){cancel(mc,"Slot manuell geändert");return;}
   if(!mc.player.canInteractWithBlockAt(r.pos,0)){cancel(mc,"Anchor außer Reichweite");return;}
-  var state=mc.world.getBlockState(r.pos);boolean present=state.isOf(Blocks.RESPAWN_ANCHOR);
+  var state=r.confirmedAnchor==null?mc.world.getBlockState(r.pos):r.confirmedAnchor;boolean present=state.isOf(Blocks.RESPAWN_ANCHOR);
   var seen=new AnchorPlan.Seen(present,present?state.get(RespawnAnchorBlock.CHARGES):0,
-    PlacementGeometry.replaceable(state),mc.world.getBlockState(r.cover).isOf(Blocks.GLOWSTONE));
+    PlacementGeometry.replaceable(state),(r.confirmedCover==null?mc.world.getBlockState(r.cover):r.confirmedCover).isOf(Blocks.GLOWSTONE));
+  if(r.aimDrift){r.aimDrift=false;if(!r.useGate.accepted()){r.plan.reacquire(r.sentAction);r.lastUseTick=-1;r.cameraTarget=null;r.camera.reset();}}
   var action=r.plan.poll(seen,now);
   if(r.interactionRefused){r.interactionRefused=false;if(r.plan.waitingFor(r.sentAction)){cancel(mc,"Minecraft hat den Klick abgelehnt · Ziel/Slot prüfen, erneut drücken");return;}}
   if(action==AnchorPlan.Action.NONE&&!r.useGate.accepted()&&r.lastUseTick>=0&&inputTick-r.lastUseTick>=2)action=r.plan.retryAfterProcessing(seen,now);
@@ -184,6 +188,11 @@ public final class SakuraClient implements ClientModInitializer {
   }
   lastStatus=(r.mode==3?"Double "+(r.plan.completed()+1)+"/2 · ":"")+r.plan.stage().name();
   if(action==AnchorPlan.Action.NONE)return;
+  // Fire is replaceable for block placement but can steal the following charge ray.
+  if(mc.crosshairTarget instanceof BlockHitResult fire && (mc.world.getBlockState(fire.getBlockPos()).isOf(Blocks.FIRE)||mc.world.getBlockState(fire.getBlockPos()).isOf(Blocks.SOUL_FIRE))){
+   if(mc.player.canInteractWithBlockAt(fire.getBlockPos(),0)&&fire.getBlockPos().getSquaredDistance(r.pos)<=9){inputs.tap(mc.options.attackKey,now,settings.systemPulseMs);lastStatus="Störendes Feuer entfernen";return;}
+  }
+  if(mc.interactionManager.isBreakingBlock()){lastStatus="Feuer-Klick abschließen";return;}
   // Native clicks can act only on the actual vanilla crosshair target.
   boolean aimed=switch(action){
    case PLACE->aimsAtPlacement(mc,r.pos);
@@ -197,16 +206,20 @@ public final class SakuraClient implements ClientModInitializer {
      ||!mc.world.getOtherEntities(null,new Box(r.cover)).isEmpty())){
    cancel(mc,"Deckungsposition nicht frei");return;
   }
-  int slot=switch(action){case PLACE->o.anchorSlot-1;case CHARGE,COVER->o.glowSlot-1;default->o.finalSlot-1;};
+  boolean firstDoubleBlast=r.mode==3&&r.plan.completed()==0;
+  int slot=switch(action){case PLACE->o.anchorSlot-1;case CHARGE,COVER->o.glowSlot-1;default->firstDoubleBlast?o.anchorSlot-1:o.finalSlot-1;};
+  final var desired=action;
+  if(o.autoSlots)slot=HotbarChoice.choose(slot,i->{var item=mc.player.getInventory().getStack(i);return switch(desired){case PLACE->item.isOf(Items.RESPAWN_ANCHOR);case CHARGE,COVER->item.isOf(Items.GLOWSTONE);default->firstDoubleBlast?item.isOf(Items.RESPAWN_ANCHOR):!item.isOf(Items.GLOWSTONE);};});
+  if(slot<0){cancel(mc,action==AnchorPlan.Action.PLACE?"Kein Anchor in der Hotbar":action==AnchorPlan.Action.CHARGE||action==AnchorPlan.Action.COVER?"Kein Glowstone in der Hotbar":"Kein passender Auslöse-Slot");return;}
   var stack=mc.player.getInventory().getStack(slot);
   if(action==AnchorPlan.Action.PLACE&&!stack.isOf(Items.RESPAWN_ANCHOR)
     ||(action==AnchorPlan.Action.CHARGE||action==AnchorPlan.Action.COVER)&&!stack.isOf(Items.GLOWSTONE)){
    cancel(mc,"Benötigtes Item im konfigurierten Slot fehlt");return;
   }
   if(action==AnchorPlan.Action.DETONATE){
-   // A normal final item (including an empty hand) is allowed; no totem requirement.
-   if(stack.isOf(Items.GLOWSTONE)||stack.isOf(Items.RESPAWN_ANCHOR)||mc.player.getOffHandStack().isOf(Items.GLOWSTONE)){
-    cancel(mc,"Glowstone / Anchor verhindert zuverlässiges Auslösen");return;
+   // Vanilla accepts a held Anchor for the default block action when not sneaking; offhand stays untouched.
+   if(stack.isOf(Items.GLOWSTONE)||mc.player.getOffHandStack().isOf(Items.GLOWSTONE)){
+    cancel(mc,"Glowstone verhindert zuverlässiges Auslösen");return;
    }
    if(r.mode==2&&(!r.cover.equals(coverPosition(mc,r.pos))||!mc.world.getBlockState(r.cover).isOf(Blocks.GLOWSTONE))){
     cancel(mc,"Glowstone-Deckung fehlt auf deiner Seite");return;
@@ -215,7 +228,7 @@ public final class SakuraClient implements ClientModInitializer {
   }
   if(action==AnchorPlan.Action.DETONATE&&r.plan.stage()==AnchorPlan.Stage.WAIT_REMOVED&&stack.getItem() instanceof BlockItem){lastStatus="Warte auf Explosion; kein zusätzlicher Block-Klick";return;}
   if(r.expected!=slot){
-   if(o.bundledInput&&o.switchMs==0){
+   if(o.bundledInput&&o.switchMs==0&&latency(mc)<50){
     if(!aimed){if(automaticAim(r))aimSafe(mc,r,action,now);return;}
     if(mc.player.isUsingItem()){inputs.mute(mc.options.useKey);return;}
     if(inputs.slotAndUse(slotBinding(mc,slot),mc.options.useKey,now,settings.systemPulseMs)){
@@ -247,9 +260,12 @@ public final class SakuraClient implements ClientModInitializer {
   var state=mc.world.getBlockState(target);boolean anchor=state.isOf(Blocks.RESPAWN_ANCHOR);
   boolean complete=switch(r.sentAction){case PLACE->anchor;case CHARGE->anchor&&state.get(RespawnAnchorBlock.CHARGES)>0;case COVER->state.isOf(Blocks.GLOWSTONE);case DETONATE->!anchor;default->false;};
   boolean aimed=switch(r.sentAction){case PLACE->PlacementGeometry.replaceable(state)&&PlacementGeometry.destination(mc.world,hit).equals(target);case COVER->PlacementGeometry.replaceable(state)&&!mc.world.getBlockState(hit.getBlockPos()).isOf(Blocks.RESPAWN_ANCHOR)&&PlacementGeometry.destination(mc.world,hit).equals(target);case CHARGE,DETONATE->anchor&&hit.getBlockPos().equals(target);default->false;};
-  var stack=player.getMainHandStack();boolean item=switch(r.sentAction){case PLACE->stack.isOf(Items.RESPAWN_ANCHOR);case CHARGE,COVER->stack.isOf(Items.GLOWSTONE);case DETONATE->!stack.isOf(Items.RESPAWN_ANCHOR)&&!stack.isOf(Items.GLOWSTONE)&&!player.getOffHandStack().isOf(Items.GLOWSTONE);default->false;};
+  var stack=player.getMainHandStack();boolean item=switch(r.sentAction){case PLACE->stack.isOf(Items.RESPAWN_ANCHOR);case CHARGE,COVER->stack.isOf(Items.GLOWSTONE);case DETONATE->!stack.isOf(Items.GLOWSTONE)&&!player.getOffHandStack().isOf(Items.GLOWSTONE);default->false;};
   var decision=r.useGate.evaluate(r.plan.waitingFor(r.sentAction),complete,hand==Hand.MAIN_HAND,player.getInventory().getSelectedSlot()==r.sentSlot,aimed,item);
-  if(decision==InteractionGate.Decision.REJECT)r.interactionRefused=true;
+  if(decision==InteractionGate.Decision.REJECT){
+   if(hand==Hand.MAIN_HAND&&!aimed&&item&&player.getInventory().getSelectedSlot()==r.sentSlot)r.aimDrift=true;
+   else if(hand==Hand.MAIN_HAND)r.interactionRefused=true;
+  }
   return decision==InteractionGate.Decision.ALLOW;
  }
  public static void observeInteraction(net.minecraft.client.network.ClientPlayerEntity player,Hand hand,BlockHitResult hit,ActionResult result){
@@ -258,7 +274,7 @@ public final class SakuraClient implements ClientModInitializer {
   var target=r.sentAction==AnchorPlan.Action.COVER?r.cover:r.pos;
   boolean placement=r.sentAction==AnchorPlan.Action.PLACE||r.sentAction==AnchorPlan.Action.COVER;
   boolean matches=hit.getBlockPos().equals(target)||placement&&hit.getBlockPos().offset(hit.getSide()).equals(target);
-  if(!matches||result==null||r.useGate.accepted())return;
+  if(!matches||result==null||r.useGate.accepted()||r.aimDrift)return;
   r.useGate.result(result.isAccepted());if(!result.isAccepted())r.interactionRefused=true;
  }
  private static boolean automaticAim(Run r){return r.options.autoCamera&&(r.mode==2||r.mode==3&&r.plan.completed()>0);}
@@ -280,12 +296,12 @@ public final class SakuraClient implements ClientModInitializer {
   if(now-next.freeSince<AnchorPlan.ms(o.repeatMs))return;
   if(!mc.player.getInventory().getStack(o.anchorSlot-1).isOf(Items.RESPAWN_ANCHOR)||!mc.player.getInventory().getStack(o.glowSlot-1).isOf(Items.GLOWSTONE)){cancel(mc,"Spam gestoppt: Anchor / Glowstone fehlt");return;}
   var r=new Run();r.mode=previous.mode;r.options=o;r.key=previous.key;r.pos=previous.pos;r.cover=previous.cover;
-  r.started=now;r.original=r.expected=mc.player.getInventory().getSelectedSlot();r.repeating=true;
+  r.confirmedAnchor=mc.world.getBlockState(r.pos);r.confirmedCover=mc.world.getBlockState(r.cover);r.started=now;r.original=r.expected=mc.player.getInventory().getSelectedSlot();r.repeating=true;
   r.plan=new AnchorPlan(false,0,r.mode==2,1,new AnchorPlan.Timings(o.placeMs,o.chargeMs,o.coverMs,o.repeatMs,r.mode==2&&o.autoCamera?Math.max(o.timeoutMs,180000/o.cameraSpeed+1000):o.timeoutMs),now);
   pendingRepeat=null;run=r;clearCrystal();lastStatus="Anchor-Wiederholung gestartet";
  }
  private void aimSafe(MinecraftClient mc,Run r,AnchorPlan.Action action,long now){
-  if(action==AnchorPlan.Action.PLACE&&!r.repeating&&!(r.mode==3&&r.plan.completed()>0))return;
+  if(action==AnchorPlan.Action.PLACE&&r.mode!=2&&!r.repeating&&!(r.mode==3&&r.plan.completed()>0))return;
   if(!mc.mouse.isCursorLocked()){cancel(mc,"Safe-Kamera benötigt gefangenen Mauszeiger");return;}
   if(r.cameraTarget==null||r.cameraAction!=action){
    r.cameraAction=action;r.camera.reset();
@@ -298,11 +314,11 @@ public final class SakuraClient implements ClientModInitializer {
       double d=mc.player.getEyePos().squaredDistanceTo(hit.getPos());if(d<distance){distance=d;best=hit;}
      }
     }
-    if(best==null){cancel(mc,"Keine sichtbare tragfähige Fläche am festen Spam-Ziel");return;}
+    if(best==null){lastStatus="Warte auf sichtbare Stützfläche am festen Ziel";return;}
     r.cameraTarget=best.getPos();
    }else{
     var point=PlacementGeometry.visibleAnchor(mc.world,mc.player.getEyePos(),r.pos,ShapeContext.of(mc.player));
-    if(point==null){cancel(mc,"Anchor für Kamerarückkehr verdeckt");return;}
+    if(point==null){lastStatus="Warte auf freie Sicht zum Anchor";return;}
     r.cameraTarget=point;
    }
   }

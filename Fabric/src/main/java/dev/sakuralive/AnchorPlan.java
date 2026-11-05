@@ -87,6 +87,7 @@ final class AnchorPlan {
   }
   return Action.NONE;
  }
+ void reacquire(Action action){if(waitingFor(action))stage=switch(action){case PLACE->Stage.PLACE;case CHARGE->Stage.CHARGE;case COVER->Stage.COVER;case DETONATE->Stage.DETONATE;default->stage;};}
  boolean waitingFor(Action action){return switch(action){case PLACE->stage==Stage.WAIT_ANCHOR;case CHARGE->stage==Stage.WAIT_CHARGE;case COVER->stage==Stage.WAIT_COVER;case DETONATE->stage==Stage.WAIT_REMOVED;default->false;};}
  Action retryAfterProcessing(Seen seen,long now){
   if(done()||now-due<0||now-expires>=0)return Action.NONE;

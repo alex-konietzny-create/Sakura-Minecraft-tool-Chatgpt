@@ -16,6 +16,24 @@ public final class CleanAnchorTest {
   check(existing.poll(new AnchorPlan.Seen(true,0,false,false),0)==AnchorPlan.Action.CHARGE,"existing anchor enters glowstone step, regardless of held totem or item");
   var placed=new AnchorPlan(false,0,false,1,timing,0);placed.confirm(AnchorPlan.Action.PLACE,true,0);
   check(placed.retryAfterProcessing(new AnchorPlan.Seen(false,0,true,false),100000000)==AnchorPlan.Action.NONE,"no blind duplicate placement while awaiting confirmation");
+  check(HotbarChoice.choose(0,i->i==7)==7,"find glowstone despite wrong configured slot");
+  check(HotbarChoice.choose(7,i->i==2||i==7)==7,"prefer configured matching stack");
+  check(HotbarChoice.choose(0,i->false)==-1,"missing stack does not invent a slot");
+  for(int delay:new int[]{60,120,250,600}){
+   var plan=new AnchorPlan(false,0,false,2,new AnchorPlan.Timings(0,0,0,0,5000),0);
+   long t=0;var air=new AnchorPlan.Seen(false,0,true,false);var uncharged=new AnchorPlan.Seen(true,0,false,false);var charged=new AnchorPlan.Seen(true,1,false,false);
+   for(int cycle=0;cycle<2;cycle++){
+    check(plan.poll(air,t)==AnchorPlan.Action.PLACE,"place cycle "+cycle);plan.confirm(AnchorPlan.Action.PLACE,true,t);
+    check(plan.poll(air,t+AnchorPlan.ms(delay)-1)==AnchorPlan.Action.NONE,"wait for delayed placement");t+=AnchorPlan.ms(delay);
+    check(plan.poll(uncharged,t)==AnchorPlan.Action.CHARGE,"charge after confirmation");plan.confirm(AnchorPlan.Action.CHARGE,true,t);
+    plan.reacquire(AnchorPlan.Action.CHARGE);check(plan.poll(uncharged,t)==AnchorPlan.Action.CHARGE,"moved ray can reacquire without cancel");plan.confirm(AnchorPlan.Action.CHARGE,true,t);
+    check(plan.poll(uncharged,t+AnchorPlan.ms(delay)-1)==AnchorPlan.Action.NONE,"wait for delayed charge");t+=AnchorPlan.ms(delay);
+    check(plan.poll(charged,t)==AnchorPlan.Action.DETONATE,"detonate after confirmed charge");plan.confirm(AnchorPlan.Action.DETONATE,true,t);
+    check(plan.poll(charged,t+AnchorPlan.ms(delay)-1)==AnchorPlan.Action.NONE,"wait for delayed removal");t+=AnchorPlan.ms(delay);
+    plan.poll(air,t);
+   }
+   check(plan.done()&&plan.completed()==2,"both cycles complete with "+delay+"ms confirmations");
+  }
   System.out.println("PASS: shared/disabled hotkeys, single accepted use, moved-target and wrong-slot rejection, existing-anchor charge entry and no duplicate place retry");
  }
 }
