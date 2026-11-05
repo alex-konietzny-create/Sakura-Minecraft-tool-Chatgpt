@@ -43,12 +43,18 @@ final class WindowsSystemInput implements AutoCloseable {
     send(code,true);
    }
    public void release(InputPulse.Code code){send(code,false);}
+   public long holdStartsAt(long fallback){return System.nanoTime();}
+   public void pressTogether(InputPulse.Code first,InputPulse.Code second){
+    if(!foreground()||!gameReady.getAsBoolean())throw new IllegalStateException("Minecraft hat den Fokus verloren");
+    INPUT[] batch=(INPUT[])new INPUT().toArray(2);fill(batch[0],first,true);fill(batch[1],second,true);
+    if(User32.INSTANCE.SendInput(new DWORD(2),batch,batch[0].size()).intValue()!=2)throw new IllegalStateException("Windows hat die kombinierte Eingabe abgelehnt");
+   }
   });
   Thread thread=new Thread(this::hooks,"Sakura physical trigger states");thread.setDaemon(true);thread.start();
   watchdog.scheduleAtFixedRate(()->{
    try{boolean safe=foreground()&&gameReady.getAsBoolean()&&System.nanoTime()-heartbeat<250_000_000L;pulse.tick(System.nanoTime(),safe);}
    catch(Throwable e){error="Eingabe-Watchdog: "+e.getMessage();}
-  },5,5,TimeUnit.MILLISECONDS);
+  },1,1,TimeUnit.MILLISECONDS);
  }
  boolean foreground(){
   HWND current=User32.INSTANCE.GetForegroundWindow();
@@ -77,6 +83,10 @@ final class WindowsSystemInput implements AutoCloseable {
   INPUT input=new INPUT();input.type=new DWORD(INPUT.INPUT_MOUSE);input.input.setType(MOUSEINPUT.class);
   input.input.mi.dx=new LONG(dx);input.input.mi.dy=new LONG(dy);input.input.mi.dwFlags=new DWORD(1);input.write();
   if(User32.INSTANCE.SendInput(new DWORD(1),new INPUT[]{input},input.size()).intValue()!=1)throw new IllegalStateException("Windows hat die Mausbewegung abgelehnt");return true;
+ }
+ boolean slotAndUse(KeyBinding slot,KeyBinding use,long now,int ms){
+  if(!available())return false;
+  return pulse.tapTogether(code(slot),code(use),now,ms,foreground());
  }
  void mute(KeyBinding binding){
   var c=code(binding);physical(c);pulse.release(c);
@@ -119,7 +129,9 @@ final class WindowsSystemInput implements AutoCloseable {
   }
  }
  static INPUT event(InputPulse.Code code,boolean down){
-  INPUT input=new INPUT();
+  INPUT input=new INPUT();fill(input,code,down);return input;
+ }
+ private static void fill(INPUT input,InputPulse.Code code,boolean down){
   if(code.mouse()){
    input.type=new DWORD(INPUT.INPUT_MOUSE);input.input.setType(MOUSEINPUT.class);
    int flags=switch(code.physicalVk()){case 1->down?0x0002:0x0004;case 2->down?0x0008:0x0010;case 4->down?0x0020:0x0040;default->down?0x0080:0x0100;};
@@ -128,7 +140,7 @@ final class WindowsSystemInput implements AutoCloseable {
    input.type=new DWORD(INPUT.INPUT_KEYBOARD);input.input.setType(KEYBDINPUT.class);
    input.input.ki.wVk=new WORD(code.physicalVk());input.input.ki.dwFlags=new DWORD((down?0:2)|((code.physicalVk()>=0x21&&code.physicalVk()<=0x2E||code.physicalVk()==0xA3||code.physicalVk()==0xA5||code.physicalVk()==0x6F)?1:0));
   }
-  input.write();return input;
+  input.write();
  }
  private static void send(InputPulse.Code code,boolean down){
   INPUT input=event(code,down);

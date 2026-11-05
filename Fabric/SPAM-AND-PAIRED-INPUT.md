@@ -1,0 +1,17 @@
+# Sakura Live 0.5.1
+
+## Spam and repeat
+Pressing the same Anchor or Safe Anchor shortcut during a run no longer cancels it. Presses coalesce into at most one requested next cycle. Holding the shortcut repeats when Repeat while held is enabled (default for normal/safe). Release prevents the next hold cycle; an explicitly queued press may finish one next run. Esc/menu/focus loss cancels and clears the queue. There is no unlimited backlog after rapid taps.
+
+Repeats keep the initial BlockPos and cover side. They wait for the old anchor to disappear, preserve the configured repeat gap and refuse a blocked cell, missing items, manual slot changes or an out-of-reach target. Safe may steer to a valid support face to place the repeated anchor; it never blindly clicks another block when the original target is not accessible. State/raycast checks reduce misplaced actions but are not a guarantee across all server/mod conditions.
+
+The overview Action delay now also sets repeatMs, so entering 1 no longer leaves an unrelated 75ms repeat delay. It also lowers the requested native input pulse to 1ms. Turbo requests zero extra action/repeat waits and 1ms pulses. A 1ms watchdog services releases, with deadlines starting after SendInput returns instead of at an earlier render timestamp. OS scheduling, frame polling, Minecraft ticks and server latency still bound actual execution. This is not a 1000-anchor/s claim or a guarantee of exact 1ms OS delivery.
+
+## Faster native slot + use
+With bundled input enabled and switchMs=0, the slot key and Use press are sent in one ordered Windows SendInput array. Minecraft 1.21.11 handleInputEvents processes hotbar key presses before Use presses; both can therefore be handled in the same game tick instead of burning a separate tick only on the slot. Both key-up events are tracked, released and retried on cleanup failures. Incoming state is still checked before the next macro phase. Bind conflicts, wrong items, item-use state, target checks and focus guards remain. The separate slot-confirmation path remains for nonzero slot preparation or when bundled input is disabled.
+
+## Recovery from missed actions
+A waiting phase can retry the still-needed action after two client input ticks have processed. Place is retried only while the exact target remains replaceable; charge only while the anchor is still uncharged; Safe cover only while absent. A delayed world confirmation suppresses the corresponding retry. Retries retain the original absolute timeout, rather than extending a failure forever. Detonation retries with final-slot block items are suppressed to avoid placing a block after a delayed explosion. Stale item-use states are released before pressing Use. This replaces passive waiting up to the default two-second timeout for recoverable missed clicks; rejected/unreachable actions can still fail.
+
+## Validation and limits
+Regression: bounded repeat queue, exact 1ms internal deadlines, world-removal and cover confirmation, retry recovery and unchanged absolute timeout, ordered paired inputs and release/partial-failure cleanup. UI smoke: persisted 1ms action/repeat values, hold-repeat and bundled-input toggles. Windows native loopback: an ordered nominal-1ms F24/right-click pair reached Minecraft callbacks and both released, in an empty focused test screen; relative captured mouse movement also passed. This proves delivery, not exact OS pulse duration or full gameplay throughput. Full normal/Safe Anchor gameplay and minimum end-to-end times have not been measured in a world.

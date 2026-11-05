@@ -24,10 +24,10 @@ public final class SakuraSettings {
  public static final class AnchorOptions {
   public int anchorSlot=1,glowSlot=2,finalSlot=9;
   public int placeMs=25,chargeMs=25,switchMs=0,coverMs=25,repeatMs=75,timeoutMs=2000;
-  public boolean autoCamera=true;
+  public boolean autoCamera=true,repeatWhileHeld=true,bundledInput=true;
   public int cameraSpeed=900;
-  public void speed(int profile){placeMs=chargeMs=coverMs=profile==0?0:profile==1?25:150;switchMs=profile==2?35:0;repeatMs=profile==0?50:profile==1?75:200;}
-  public void actionDelay(int value){placeMs=chargeMs=coverMs=value;switchMs=Math.min(switchMs,value/2);}
+  public void speed(int profile){placeMs=chargeMs=coverMs=profile==0?0:profile==1?25:150;switchMs=profile==2?35:0;repeatMs=profile==0?0:profile==1?75:200;}
+  public void actionDelay(int value){placeMs=chargeMs=coverMs=repeatMs=value;switchMs=Math.min(switchMs,value/2);}
   public boolean requireAim=true,holdToRun=false;
   static AnchorOptions legit(){
    var o=new AnchorOptions();o.placeMs=280;o.chargeMs=280;o.switchMs=80;o.holdToRun=true;return o;
@@ -67,7 +67,7 @@ public final class SakuraSettings {
  }
  private static int old(JsonObject raw,String key,int fallback){return raw.has(key)?raw.get(key).getAsInt():fallback;}
  public void clamp(){
-  systemPulseMs=cap(systemPulseMs,2,100);
+  systemPulseMs=cap(systemPulseMs,1,100);
   if(outline==null)outline=new OutlineOptions();outline.clamp();
   if(anchorOptions==null)anchorOptions=new AnchorOptions();if(legitOptions==null)legitOptions=AnchorOptions.legit();
   if(safeOptions==null)safeOptions=new AnchorOptions();if(doubleOptions==null)doubleOptions=new AnchorOptions();

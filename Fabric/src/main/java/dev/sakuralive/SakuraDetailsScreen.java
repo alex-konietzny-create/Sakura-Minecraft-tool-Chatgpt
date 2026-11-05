@@ -60,7 +60,7 @@ public final class SakuraDetailsScreen extends Screen {
    return;
   }
   button(210,96,686,56,Skin.HERO,()->NAMES[tab],this::hint,()->SakuraClient.enabled(tab),0,()->{SakuraClient.toggle(tab);changed();});
-  String[] labels=tab==2?new String[]{"Timing","Hotbar","Verhalten","Kamera"}:tab<4?new String[]{"Timing","Hotbar","Verhalten"}:new String[]{"Timing","Verhalten"};
+  String[] labels=tab==2?new String[]{"Timing","Hotbar","Verhalten","Kamera","Eingabe"}:tab<4?new String[]{"Timing","Hotbar","Verhalten","Eingabe"}:new String[]{"Timing","Verhalten"};
   for(int i=0;i<labels.length;i++){
    final int n=i;
    button(210+i*126,169,118,29,Skin.TAB,()->labels[n],()->"Einstellungen: "+labels[n],()->section==n,0,()->select(tab,n));
@@ -72,7 +72,7 @@ public final class SakuraDetailsScreen extends Screen {
     slider(230,317,378,"Nach dem Laden",()->o.chargeMs,n->o.chargeMs=n,0,2000);
     slider(230,381,378,"Slot-Vorbereitung",()->o.switchMs,n->o.switchMs=n,0,500);
     if(tab==2)slider(230,445,378,"Nach Glowstone-Deckung",()->o.coverMs,n->o.coverMs=n,0,2000);
-    if(tab==3)slider(230,445,378,"Zwischen beiden Durchläufen",()->o.repeatMs,n->o.repeatMs=n,0,2000);
+    if(tab==3||tab==0)slider(230,445,378,tab==3?"Zwischen beiden Durchläufen":"Spam-Pause",()->o.repeatMs,n->o.repeatMs=n,0,2000);
    }else if(tab==4){
     slider(230,253,378,"Vor nächster Platzierung",()->s.crystalPlaceMs,n->s.crystalPlaceMs=n,0,2000);
     slider(230,337,378,"Vor dem Abbau",()->s.crystalBreakMs,n->s.crystalBreakMs=n,0,2000);
@@ -81,9 +81,13 @@ public final class SakuraDetailsScreen extends Screen {
     slider(230,253,378,"Platzierpause",()->s.placeDelayMs,n->s.placeDelayMs=n,0,200);
     toggle(230,350,378,"Anchor / Glowstone ausnehmen",()->s.excludeAnchors,()->s.excludeAnchors=!s.excludeAnchors);
    }
+  }else if(tab<4&&section==(tab==2?4:3)){
+   toggle(230,260,378,"Slot und Klick bündeln",()->o.bundledInput,()->o.bundledInput=!o.bundledInput);
+   slider(230,349,378,"Eingabepuls",()->s.systemPulseMs,n->s.systemPulseMs=n,1,100);
   }else if(tab==2&&section==3){
    toggle(230,260,378,"Automatische Safe-Kamera",()->o.autoCamera,()->o.autoCamera=!o.autoCamera);
    slider(230,349,378,"Kameratempo (Grad / Sekunde)",()->o.cameraSpeed,n->o.cameraSpeed=n,30,3600);
+   slider(230,438,378,"Spam-Pause",()->o.repeatMs,n->o.repeatMs=n,0,2000);
   }else if(tab<4&&section==1){
    slots(276,()->o.anchorSlot,n->o.anchorSlot=n,"Anchor-Slot");
    slots(348,()->o.glowSlot,n->o.glowSlot=n,"Glowstone-Slot");
@@ -91,7 +95,8 @@ public final class SakuraDetailsScreen extends Screen {
   }else{
    button(230,255,378,36,Skin.KEY,()->keyName(SakuraClient.keyFor(tab)),()->"Klicken und Taste oder Maustaste drücken",()->false,0,()->capture=SakuraClient.keyFor(tab));
    if(tab<4){
-    button(230,333,378,42,Skin.BUTTON,()->tab==2&&o.autoCamera?"Safe-Kamera ist aktiv":"Zielen bleibt bei dir",()->"Klicks wirken auf dein tatsächliches Fadenkreuz",()->true,0,()->{});
+    if(tab==0||tab==2)toggle(230,333,378,"Wiederholen beim Gedrückthalten",()->o.repeatWhileHeld,()->o.repeatWhileHeld=!o.repeatWhileHeld);
+    else button(230,333,378,42,Skin.BUTTON,()->"Zielen bleibt bei dir",()->"Klicks wirken auf dein tatsächliches Fadenkreuz",()->true,0,()->{});
     toggle(230,391,378,"Hotkey gedrückt halten",()->o.holdToRun,()->o.holdToRun=!o.holdToRun);
     slider(230,451,378,"Bestätigung: Zeitlimit",()->o.timeoutMs,n->o.timeoutMs=n,250,10000);
    }
@@ -100,7 +105,7 @@ public final class SakuraDetailsScreen extends Screen {
    String[] profiles={"Turbo","Schnell","Ruhig"};
    for(int i=0;i<3;i++){final int profile=i;button(660+i*74,401,68,24,Skin.BUTTON,()->profiles[profile],()->"Setzt alle Aktionspausen gemeinsam",()->(tab<4?o.placeMs:s.crystalPlaceMs)==(profile==0?0:profile==1?25:150)&&(tab<4?o.chargeMs:s.crystalBreakMs)==(profile==0?0:profile==1?25:150),0,()->{
     if(tab<4)o.speed(profile);else{s.crystalPlaceMs=s.crystalBreakMs=profile==0?0:profile==1?25:150;}
-    s.systemPulseMs=profile==0?4:profile==1?8:20;changed();clearAndInit();
+    s.systemPulseMs=profile==0?1:profile==1?8:20;changed();clearAndInit();
    });}
   }
  }
@@ -244,7 +249,7 @@ public final class SakuraDetailsScreen extends Screen {
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF7C7485);
-  label(c,"0.5.0 / FABRIC 1.21.11",29,551,0xFF7C7485);
+  label(c,"0.5.1 / FABRIC 1.21.11",29,551,0xFF7C7485);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   title(c,NAMES[tab],210,39,2.25f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);
@@ -261,12 +266,14 @@ public final class SakuraDetailsScreen extends Screen {
    label(c,"Schrift, Bewegung und Bedienung.",230,461,MUTED);
   }
   if(tab!=6){
-   label(c,tab==2&&section==3?"KAMERASTEUERUNG":section==0?"ZEITEN IN MILLISEKUNDEN":tab<4&&section==1?"DEINE HOTBAR":"HOTKEY & VERHALTEN",230,232,MUTED);
+   label(c,tab<4&&section==(tab==2?4:3)?"SYSTEMEINGABEN":tab==2&&section==3?"KAMERASTEUERUNG":section==0?"ZEITEN IN MILLISEKUNDEN":tab<4&&section==1?"DEINE HOTBAR":"HOTKEY & VERHALTEN",230,232,MUTED);
    if(tab<4&&section==1){
     label(c,"Anchor",230,257,INK);label(c,"Glowstone",230,329,INK);label(c,"Finaler Slot · kein Totem erforderlich",230,401,INK);
+   }else if(tab<4&&section==(tab==2?4:3)){
+    small(c,"Slot-Taste und Benutzen werden gemeinsam gesendet.",230,438,MUTED,378);
+    small(c,"Aktiv bei 0 ms Slot-Vorbereitung.",230,465,MUTED,378);
    }else if(tab==2&&section==3){
-    label(c,"Deckungsfläche und Anchor werden nacheinander anvisiert.",230,438,MUTED);
-    small(c,"Höherer Wert = schnellere Kamerabewegung.",230,465,MUTED,378);
+    small(c,"Loslassen beendet Wiederholungen; Esc bricht ab.",230,493,MUTED,378);
    }else if(section>0){
     String note=conflict(SakuraClient.keyFor(tab));
     small(c,note,230,305,note.startsWith("Konflikt")?0xFFFFB490:MUTED,378);
@@ -349,7 +356,7 @@ public final class SakuraDetailsScreen extends Screen {
    if(!w.isFocused()&&!w.getText().equals(Integer.toString(f.get.getAsInt())))w.setText(Integer.toString(f.get.getAsInt()));
    boolean valid=!w.getText().isEmpty()&&Integer.parseInt(w.getText())>=f.min&&Integer.parseInt(w.getText())<=f.max;
    round(c,w.getX()-7,w.getY()-3,85,26,6,valid?0xFF292C30:0xFF58303E);
-   label(c,tab==2&&section==3?"°/s":"ms",w.getX()+59,w.getY()+4,MUTED);
+   label(c,tab==2&&section==3&&f.max==3600?"°/s":"ms",w.getX()+59,w.getY()+4,MUTED);
    label(c,w.getText(),w.getX(),w.getY()+2,valid?INK:0xFFFF8C91);
    if(w.isFocused()&&(now/500_000_000L)%2==0){int cursor=Math.min(w.getCursor(),w.getText().length());int cx=w.getX()+tw(w.getText().substring(0,cursor));c.fill(cx,w.getY()+1,cx+1,w.getY()+14,INK);}
    if(w.isFocused())hover="Erlaubt: "+f.min+" bis "+f.max+" ms. Ungültige Werte werden nicht übernommen.";

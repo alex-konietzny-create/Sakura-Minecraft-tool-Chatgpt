@@ -10,8 +10,8 @@ import org.lwjgl.glfw.GLFW;
 import java.io.File;
 /** Development-only rendering and input regression; no world or gameplay. */
 final class SakuraUiSmoke {
- private static final String[] NAMES={"anchor-grid","crystal-grid","utility-grid","themes-grid","anchor-grid-blue","anchor-details","block-outline","safe-camera"};
- private static final int[] PAGES={1,0,2,3,1,1,2,1};
+ private static final String[] NAMES={"anchor-grid","crystal-grid","utility-grid","themes-grid","anchor-grid-blue","anchor-details","block-outline","safe-camera","anchor-input"};
+ private static final int[] PAGES={1,0,2,3,1,1,2,1,1};
  private static int stage=-1,wait=60;
  private static boolean tested;
  private static int animationFrame=-1;
@@ -63,6 +63,7 @@ final class SakuraUiSmoke {
  private static void verify(MinecraftClient mc){
   verifyFirePlacement();
   var s=SakuraClient.settings;boolean motion=s.reduceMotion,anchor=s.anchor,blue=s.blueAccent;
+  boolean holdRepeat=s.anchorOptions.repeatWhileHeld;
   int pulse=s.systemPulseMs,repeat=s.anchorOptions.repeatMs,cam=s.safeOptions.cameraSpeed;boolean autoCam=s.safeOptions.autoCamera;
   int charge=s.anchorOptions.chargeMs,cover=s.anchorOptions.coverMs,prep=s.anchorOptions.switchMs;
   int delay=s.anchorOptions.placeMs,slot=s.anchorOptions.anchorSlot;
@@ -77,6 +78,13 @@ final class SakuraUiSmoke {
    ((TextFieldWidget)screen.getFocused()).setText("8");screen.keyPressed(new KeyInput(GLFW.GLFW_KEY_ENTER,0,0));
    check(s.anchorOptions.anchorSlot==8,"slot editing");
   }
+  var oneMs=new SakuraScreen(1);mc.setScreen(oneMs);oneMs.resize(640,420);click(oneMs,455,230);
+  ((TextFieldWidget)oneMs.getFocused()).setText("1");oneMs.keyPressed(new KeyInput(GLFW.GLFW_KEY_ENTER,0,0));
+  check(s.anchorOptions.placeMs==1&&s.anchorOptions.chargeMs==1&&s.anchorOptions.coverMs==1&&s.anchorOptions.repeatMs==1&&s.systemPulseMs==1&&SakuraSettings.load().anchorOptions.repeatMs==1,"1ms overview applies to all requested waits, input hold and repeat gap");
+  var behavior=new SakuraDetailsScreen(0,2);mc.setScreen(behavior);double bs=Math.max(.01,Math.min(1.2,Math.min((behavior.width-20.0)/920,(behavior.height-20.0)/580)));
+  var bp=new Click((behavior.width-bs*920)/2+350*bs,(behavior.height-bs*580)/2+350*bs,new MouseInput(0,0));behavior.mouseClicked(bp,false);behavior.mouseReleased(bp);
+  check(s.anchorOptions.repeatWhileHeld!=holdRepeat&&SakuraSettings.load().anchorOptions.repeatWhileHeld!=holdRepeat,"hold-repeat toggle persists");
+  s.anchorOptions.repeatWhileHeld=holdRepeat;s.save();behavior.close();
   var key=SakuraClient.anchorKey;var original=InputUtil.fromTranslationKey(key.getBoundKeyTranslationKey());
   var screen=new SakuraScreen(1);mc.setScreen(screen);click(screen,475,203);
   var input=new KeyInput(GLFW.GLFW_KEY_F8,0,0);screen.keyPressed(input);check(key.matchesKey(input),"key capture");
@@ -93,7 +101,7 @@ final class SakuraUiSmoke {
   check(s.anchorOptions.placeMs==139,"advanced ms editing");
   var turbo=new Click((details.width-ds*920)/2+690*ds,(details.height-ds*580)/2+412*ds,new MouseInput(0,0));
   details.mouseClicked(turbo,false);details.mouseReleased(turbo);
-  check(s.anchorOptions.placeMs==0&&s.anchorOptions.chargeMs==0&&s.anchorOptions.switchMs==0&&s.systemPulseMs==4&&SakuraSettings.load().anchorOptions.placeMs==0,"Turbo changes all waits and persists real zero");
+  check(s.anchorOptions.placeMs==0&&s.anchorOptions.chargeMs==0&&s.anchorOptions.switchMs==0&&s.systemPulseMs==1&&SakuraSettings.load().anchorOptions.placeMs==0,"Turbo changes all waits and persists real zero");
   details.close();
   check(mc.currentScreen instanceof SakuraScreen,"details back navigation");
   screen=new SakuraScreen(3);mc.setScreen(screen);click(screen,440,175);check(s.blueAccent,"theme switch");
@@ -123,7 +131,14 @@ final class SakuraUiSmoke {
   ((TextFieldWidget)cameraScreen.getFocused()).setText("2400");cameraScreen.keyPressed(new KeyInput(GLFW.GLFW_KEY_ENTER,0,0));
   check(s.safeOptions.cameraSpeed==2400&&SakuraSettings.load().safeOptions.cameraSpeed==2400,"safe camera speed persistence");
   s.safeOptions.cameraSpeed=cam;s.safeOptions.autoCamera=autoCam;s.save();cameraScreen.close();
-  System.out.println("[Sakura UI smoke] PASS: Turbo persists zero waits across all anchor phases; Safe camera speed editable and persisted");
+  boolean bundled=s.anchorOptions.bundledInput;
+  var inputSettings=new SakuraDetailsScreen(0,3);mc.setScreen(inputSettings);
+  double ins=Math.max(.01,Math.min(1.2,Math.min((inputSettings.width-20.0)/920,(inputSettings.height-20.0)/580)));
+  var ip=new Click((inputSettings.width-ins*920)/2+350*ins,(inputSettings.height-ins*580)/2+280*ins,new MouseInput(0,0));
+  inputSettings.mouseClicked(ip,false);inputSettings.mouseReleased(ip);
+  check(s.anchorOptions.bundledInput!=bundled&&SakuraSettings.load().anchorOptions.bundledInput!=bundled,"bundled slot/click toggle persists");
+  s.anchorOptions.bundledInput=bundled;s.save();inputSettings.close();
+  System.out.println("[Sakura UI smoke] PASS: 1ms waits and repeat gap persist; hold-repeat toggle; Turbo zero waits; Safe camera speed editable");
   System.out.println("[Sakura UI smoke] PASS: shortcut consumed once without changing shared vanilla key; releases and GUI passthrough; outline RGB field and persistence");
   System.out.println("[Sakura UI smoke] PASS: card power toggles, direct ms/slot fields, persistence, keyboard/mouse binding, advanced navigation and theme; three UI sizes");
  }
@@ -153,7 +168,7 @@ final class SakuraUiSmoke {
    if(!tested){verify(mc);tested=true;mc.setScreen(new SakuraScreen(1));wait=40;return;}
    if(stage<NAMES.length){
     ScreenshotRecorder.saveScreenshot(mc.runDirectory,"sakura-"+NAMES[stage]+".png",mc.getFramebuffer(),1,t->System.out.println("[Sakura UI smoke] "+t.getString()));
-    stage++;if(stage<NAMES.length){SakuraClient.settings.blueAccent=stage==4;mc.setScreen(stage==7?new SakuraDetailsScreen(2,3):stage==6?new SakuraOutlineScreen():stage==5?new SakuraDetailsScreen(0):new SakuraScreen(PAGES[stage]));}wait=40;return;
+    stage++;if(stage<NAMES.length){SakuraClient.settings.blueAccent=stage==4;mc.setScreen(stage==8?new SakuraDetailsScreen(0,3):stage==7?new SakuraDetailsScreen(2,3):stage==6?new SakuraOutlineScreen():stage==5?new SakuraDetailsScreen(0):new SakuraScreen(PAGES[stage]));}wait=40;return;
    }
    for(var name:NAMES){var file=new File(mc.runDirectory,"screenshots/sakura-"+name+".png");check(file.isFile()&&file.length()>0,"screenshot "+name);}
    if(animationFrame==-1)System.out.println("[Sakura UI smoke] Grid pages rendered successfully. No gameplay test.");

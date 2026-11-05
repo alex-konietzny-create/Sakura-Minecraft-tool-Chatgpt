@@ -87,9 +87,21 @@ final class AnchorPlan {
   }
   return Action.NONE;
  }
+ Action retryAfterProcessing(Seen seen,long now){
+  if(done()||now-due<0||now-expires>=0)return Action.NONE;
+  return switch(stage){
+   case WAIT_ANCHOR->!seen.anchor&&seen.replaceable?Action.PLACE:Action.NONE;
+   case WAIT_CHARGE->seen.anchor&&seen.charges==0?Action.CHARGE:Action.NONE;
+   case WAIT_COVER->seen.anchor&&seen.charges>0&&!seen.cover?Action.COVER:Action.NONE;
+   case WAIT_REMOVED->seen.anchor&&seen.charges>0&&(!coverRequired||seen.cover)?Action.DETONATE:Action.NONE;
+   default->Action.NONE;
+  };
+ }
  void confirm(Action action,boolean accepted,long now){
   if(done())return;
   if(!accepted){cancel("Interaktion abgelehnt");return;}
+  boolean retry=action==Action.PLACE&&stage==Stage.WAIT_ANCHOR||action==Action.CHARGE&&stage==Stage.WAIT_CHARGE||action==Action.COVER&&stage==Stage.WAIT_COVER||action==Action.DETONATE&&stage==Stage.WAIT_REMOVED;
+  if(retry){due=now+ms(switch(action){case PLACE->timing.placeMs;case CHARGE->timing.chargeMs;case COVER->timing.coverMs;default->0;});return;}
   switch(action){
    case PLACE -> transition(Stage.WAIT_ANCHOR,now,timing.placeMs);
    case CHARGE -> transition(Stage.WAIT_CHARGE,now,timing.chargeMs);

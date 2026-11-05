@@ -31,17 +31,19 @@ final class SakuraNativeSmoke {
    input.tick(System.nanoTime(),safe);
    if(!safe||!input.available())return;
    if(stage==1){
-    if(input.tap(testKey,System.nanoTime(),50)){stage=2;wait=5;}return;
+    var mouse=new KeyBinding("sakura.native_pair_mouse",InputUtil.Type.MOUSE,1,KeyBinding.Category.create(net.minecraft.util.Identifier.of("sakuralive","native_pair")));
+    GLFW.glfwSetCursorPos(mc.getWindow().getHandle(),mc.getWindow().getWidth()/2.0,mc.getWindow().getHeight()/2.0);
+    if(input.slotAndUse(testKey,mouse,System.nanoTime(),1)){stage=3;wait=5;}return;
    }
    if(stage==2){
     if(target.keys<1)return;
     GLFW.glfwSetCursorPos(mc.getWindow().getHandle(),mc.getWindow().getWidth()/2.0,mc.getWindow().getHeight()/2.0);
     // Only a right click over this empty screen, with no actionable widgets.
     var mouse=new KeyBinding("sakura.native_mouse",InputUtil.Type.MOUSE,1,KeyBinding.Category.create(net.minecraft.util.Identifier.of("sakuralive","native_mouse")));
-    if(input.tap(mouse,System.nanoTime(),50)){stage=3;wait=5;}return;
+    if(input.tap(mouse,System.nanoTime(),1)){stage=3;wait=5;}return;
    }
    if(stage==3){
-    if(target.clicks<1)return;
+    if(target.clicks<1||target.keys<1)return;
     if(GLFW.glfwGetKey(mc.getWindow().getHandle(),GLFW.GLFW_KEY_F24)!=GLFW.GLFW_RELEASE||GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),1)!=GLFW.GLFW_RELEASE)return;
     GLFW.glfwSetInputMode(mc.getWindow().getHandle(),GLFW.GLFW_CURSOR,GLFW.GLFW_CURSOR_DISABLED);
     if(GLFW.glfwRawMouseMotionSupported())GLFW.glfwSetInputMode(mc.getWindow().getHandle(),GLFW.GLFW_RAW_MOUSE_MOTION,GLFW.GLFW_FALSE);
@@ -53,7 +55,7 @@ final class SakuraNativeSmoke {
     GLFW.glfwSetInputMode(mc.getWindow().getHandle(),GLFW.GLFW_CURSOR,GLFW.GLFW_CURSOR_NORMAL);
     input.close();input=null;
     System.out.println("[Sakura native smoke] PASS: relative SendInput movement received with captured cursor and raw mode temporarily disabled.");
-    System.out.println("[Sakura native smoke] PASS: actual Windows SendInput F24 and right-click received through Minecraft GLFW callbacks; both released. Empty test screen, no gameplay.");
+    System.out.println("[Sakura native smoke] PASS: nominal 1ms Windows SendInput F24 and right-click received through Minecraft GLFW callbacks; both released. Empty test screen, no gameplay.");
     mc.scheduleStop();wait=Integer.MAX_VALUE;
    }
   }catch(Exception e){fail(e.toString());}

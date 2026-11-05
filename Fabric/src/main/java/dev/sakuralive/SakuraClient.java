@@ -23,6 +23,9 @@ public final class SakuraClient implements ClientModInitializer {
  public static String lastStatus="Bereit";
  private static SakuraClient instance;
  private Run run;
+ private long inputTick;
+ private PendingRepeat pendingRepeat;
+ private static final class PendingRepeat {Run source;boolean queued;long freeSince,deadline;}
  private WindowsSystemInput inputs;
  private String inputError="";
  private boolean fastHeld;
@@ -34,7 +37,7 @@ public final class SakuraClient implements ClientModInitializer {
  private boolean crystalHeld;
  private static final class Run {
   int mode,original,expected,pendingSlot=-1;
-  long slotDeadline,started;
+  long slotDeadline,started,lastUseTick=-1;
   BlockPos pos,cover;
   SakuraSettings.AnchorOptions options;
   AnchorPlan plan;
@@ -43,6 +46,8 @@ public final class SakuraClient implements ClientModInitializer {
   Vec3d cameraTarget;
   AnchorPlan.Action cameraAction=AnchorPlan.Action.NONE;
   int previousRaw=-1;
+  final RepeatGate repeats=new RepeatGate();
+  boolean repeating,batched;
  }
  @Override public void onInitializeClient(){
   instance=this;
@@ -74,16 +79,24 @@ public final class SakuraClient implements ClientModInitializer {
  }
  private static boolean ready(MinecraftClient mc){
   return mc.player!=null&&mc.world!=null&&mc.interactionManager!=null&&mc.currentScreen==null
-    &&mc.isWindowFocused()&&!mc.isPaused()&&mc.player.isAlive()&&!mc.player.isSpectator();
+    &&mc.getOverlay()==null&&mc.mouse.isCursorLocked()&&mc.isWindowFocused()&&!mc.isPaused()&&mc.player.isAlive()&&!mc.player.isSpectator();
  }
  private void tick(MinecraftClient mc){
+  inputTick++;
   while(Hotkeys.take(7)||menuKey.wasPressed())mc.setScreen(new SakuraScreen());
   while(Hotkeys.take(6)||outlineKey.wasPressed()){settings.outline.enabled=!settings.outline.enabled;settings.save();}
   if(!ready(mc)){cancel(mc,"Menü / Spiel pausiert");drain();return;}
   while(Hotkeys.take(4)||crystalKey.wasPressed()){toggle(4);settings.save();}
   while(Hotkeys.take(5)||fastKey.wasPressed()){toggle(5);settings.save();}
   for(int mode=0;mode<4;mode++)while(Hotkeys.take(mode)||keyFor(mode).wasPressed()){
-   if(run!=null){cancel(mc,"Per Hotkey abgebrochen");continue;}
+   if(run!=null){
+    if((mode==0||mode==2)&&run.mode==mode){run.repeats.request();lastStatus="Nächster Anchor vorgemerkt";}
+    else if(run.mode==mode)cancel(mc,"Per Hotkey abgebrochen");
+    else lastStatus="Ein anderer Anchor-Ablauf läuft bereits";
+    continue;
+   }
+   if(pendingRepeat!=null&&pendingRepeat.source.mode==mode){pendingRepeat.queued=true;continue;}
+   pendingRepeat=null;
    if(enabled(mode))start(mc,mode);
   }
  }
@@ -105,7 +118,7 @@ public final class SakuraClient implements ClientModInitializer {
   if(net.fabricmc.loader.api.FabricLoader.getInstance().isDevelopmentEnvironment()&&Boolean.getBoolean("sakura.uiSmoke"))SakuraUiSmoke.frame(mc);
   if(instance==null)return;
   try{instance.advance(mc);}catch(RuntimeException|LinkageError e){
-   if(instance.run!=null)restoreCamera(mc,instance.run);instance.run=null;lastStatus="Systemeingabe angehalten: "+e.getMessage();
+   if(instance.run!=null)restoreCamera(mc,instance.run);instance.run=null;instance.pendingRepeat=null;lastStatus="Systemeingabe angehalten: "+e.getMessage();
    if(instance.inputs!=null)try{instance.inputs.releaseAll();}catch(RuntimeException ignored){}
   }
  }
@@ -117,12 +130,13 @@ public final class SakuraClient implements ClientModInitializer {
   for(int i=0;i<7;i++)if(!keyFor(i).isUnbound()&&(keyFor(i).equals(mc.options.useKey)||keyFor(i).equals(mc.options.attackKey))){lastStatus="Makro-Hotkey kollidiert mit Benutzen / Angriff";return false;}
   return inputs.foreground();
  }
- private boolean slotInput(MinecraftClient mc,int slot,long now){
+ private KeyBinding slotBinding(MinecraftClient mc,int slot){
   var key=mc.options.hotbarKeys[slot];
   if(key.equals(mc.options.useKey)||key.equals(mc.options.attackKey))throw new IllegalArgumentException("Hotbar-Taste kollidiert mit Benutzen / Angriff");
   for(int i=0;i<7;i++)if(!keyFor(i).isUnbound()&&key.equals(keyFor(i)))throw new IllegalArgumentException("Hotbar-Taste kollidiert mit einem Makro");
-  return inputs.tap(key,now,settings.systemPulseMs);
+  return key;
  }
+ private boolean slotInput(MinecraftClient mc,int slot,long now){return inputs.tap(slotBinding(mc,slot),now,settings.systemPulseMs);}
  private void advance(MinecraftClient mc){
   long now=System.nanoTime();
   if(inputs!=null)inputs.tick(now,ready(mc));
@@ -133,9 +147,14 @@ public final class SakuraClient implements ClientModInitializer {
  }
  private void advanceInputs(MinecraftClient mc,long now){
   if(world!=mc.world||player!=mc.player){
-   inputs.releaseAll();
+   inputs.releaseAll();pendingRepeat=null;
    if(run!=null){restoreCamera(mc,run);run=null;lastStatus="Welt / Spieler gewechselt";}
    clearCrystal();world=mc.world;player=mc.player;
+  }
+  if(pendingRepeat!=null){
+   fastHeld=false;advanceRepeat(mc,now);
+   if(run!=null)advanceAnchor(mc,now);
+   return;
   }
   if(run!=null){fastHeld=false;advanceAnchor(mc,now);return;}
   if(crystalActive(mc)){fastHeld=false;crystal(mc,now);}
@@ -146,16 +165,18 @@ public final class SakuraClient implements ClientModInitializer {
   int selected=mc.player.getInventory().getSelectedSlot();
   if(!enabled(r.mode)||(o.holdToRun&&!inputs.physical(r.key))){cancel(mc,"Losgelassen / deaktiviert");return;}
   if(r.pendingSlot>=0){
-   if(selected==r.pendingSlot){r.expected=selected;r.pendingSlot=-1;r.plan.defer(now,o.switchMs);if(o.switchMs>0)return;}
+   if(selected==r.pendingSlot){r.expected=selected;r.pendingSlot=-1;if(!r.batched)r.plan.defer(now,o.switchMs);r.batched=false;if(o.switchMs>0)return;}
    else {if(selected!=r.expected||now-r.slotDeadline>=0)cancel(mc,"Slotwechsel nicht bestätigt");else if(r.mode==2&&o.autoCamera&&r.cameraTarget!=null)moveCamera(mc,r,now);return;}
   }
   if(selected!=r.expected){cancel(mc,"Slot manuell geändert");return;}
   if(!mc.player.canInteractWithBlockAt(r.pos,0)){cancel(mc,"Anchor außer Reichweite");return;}
   var state=mc.world.getBlockState(r.pos);boolean present=state.isOf(Blocks.RESPAWN_ANCHOR);
-  var action=r.plan.poll(new AnchorPlan.Seen(present,present?state.get(RespawnAnchorBlock.CHARGES):0,
-    PlacementGeometry.replaceable(state),mc.world.getBlockState(r.cover).isOf(Blocks.GLOWSTONE)),now);
+  var seen=new AnchorPlan.Seen(present,present?state.get(RespawnAnchorBlock.CHARGES):0,
+    PlacementGeometry.replaceable(state),mc.world.getBlockState(r.cover).isOf(Blocks.GLOWSTONE));
+  var action=r.plan.poll(seen,now);
+  if(action==AnchorPlan.Action.NONE&&r.lastUseTick>=0&&inputTick-r.lastUseTick>=2)action=r.plan.retryAfterProcessing(seen,now);
   if(r.plan.done()){
-   if(r.plan.stage()==AnchorPlan.Stage.FINISHED){lastStatus="Anchor abgeschlossen · "+((now-r.started)/1_000_000)+" ms";restoreCamera(mc,r);run=null;}
+   if(r.plan.stage()==AnchorPlan.Stage.FINISHED){lastStatus="Anchor abgeschlossen · "+((now-r.started)/1_000_000)+" ms";restoreCamera(mc,r);run=null;queueRepeat(mc,r,now);}
    else cancel(mc,r.plan.reason());
    return;
   }
@@ -190,7 +211,16 @@ public final class SakuraClient implements ClientModInitializer {
    }
    if(mc.player.isSneaking()&&stack.getItem() instanceof BlockItem){cancel(mc,"Schleichen mit Block im finalen Slot");return;}
   }
+  if(action==AnchorPlan.Action.DETONATE&&r.plan.stage()==AnchorPlan.Stage.WAIT_REMOVED&&stack.getItem() instanceof BlockItem){lastStatus="Warte auf Explosion; kein zusätzlicher Block-Klick";return;}
   if(r.expected!=slot){
+   if(o.bundledInput&&o.switchMs==0){
+    if(!aimed){if(r.mode==2&&o.autoCamera)aimSafe(mc,r,action,now);return;}
+    if(mc.player.isUsingItem()){inputs.mute(mc.options.useKey);return;}
+    if(inputs.slotAndUse(slotBinding(mc,slot),mc.options.useKey,now,settings.systemPulseMs)){
+     r.pendingSlot=slot;r.batched=true;r.slotDeadline=now+AnchorPlan.ms(Math.max(750,o.timeoutMs));r.lastUseTick=inputTick;r.plan.confirm(action,true,now);
+    }
+    return;
+   }
    if(slotInput(mc,slot,now)){r.pendingSlot=slot;r.slotDeadline=now+AnchorPlan.ms(Math.max(750,o.timeoutMs));}
    if(!aimed&&r.mode==2&&o.autoCamera)aimSafe(mc,r,action,now);
    return;
@@ -201,24 +231,49 @@ public final class SakuraClient implements ClientModInitializer {
    return;
   }
   r.cameraTarget=null;r.camera.reset();
-  if(inputs.tap(mc.options.useKey,now,settings.systemPulseMs))
-   r.plan.confirm(action,true,now);
+  if(mc.player.isUsingItem()){inputs.mute(mc.options.useKey);lastStatus="Benutzen-Taste freigeben, dann Anchor fortsetzen";return;}
+  if(inputs.tap(mc.options.useKey,now,settings.systemPulseMs)){
+   r.lastUseTick=inputTick;r.plan.confirm(action,true,now);
+  }
 
  }
+ private void queueRepeat(MinecraftClient mc,Run source,long now){
+  if(source.mode!=0&&source.mode!=2)return;
+  boolean queued=source.repeats.take(),held=source.options.repeatWhileHeld&&inputs.physical(source.key);
+  if(!queued&&!held)return;
+  var next=new PendingRepeat();next.source=source;next.queued=queued;next.freeSince=now;
+  next.deadline=now+AnchorPlan.ms(Math.max(source.options.timeoutMs,source.options.repeatMs+500));pendingRepeat=next;
+ }
+ private void advanceRepeat(MinecraftClient mc,long now){
+  var next=pendingRepeat;var previous=next.source;var o=previous.options;
+  if(!enabled(previous.mode)||!next.queued&&(!o.repeatWhileHeld||!inputs.physical(previous.key))){pendingRepeat=null;return;}
+  if(mc.player.getInventory().getSelectedSlot()!=previous.expected){cancel(mc,"Spam gestoppt: Slot manuell geändert");return;}
+  if(!mc.player.canInteractWithBlockAt(previous.pos,0)||now-next.deadline>=0){cancel(mc,"Spam-Ziel nicht mehr erreichbar / bestätigt");return;}
+  var state=mc.world.getBlockState(previous.pos);
+  if(state.isOf(Blocks.RESPAWN_ANCHOR)){next.freeSince=now;return;}
+  if(!PlacementGeometry.replaceable(state)){cancel(mc,"Spam-Ziel durch anderen Block belegt");return;}
+  if(now-next.freeSince<AnchorPlan.ms(o.repeatMs))return;
+  if(!mc.player.getInventory().getStack(o.anchorSlot-1).isOf(Items.RESPAWN_ANCHOR)||!mc.player.getInventory().getStack(o.glowSlot-1).isOf(Items.GLOWSTONE)){cancel(mc,"Spam gestoppt: Anchor / Glowstone fehlt");return;}
+  var r=new Run();r.mode=previous.mode;r.options=o;r.key=previous.key;r.pos=previous.pos;r.cover=previous.cover;
+  r.started=now;r.original=r.expected=mc.player.getInventory().getSelectedSlot();r.repeating=true;
+  r.plan=new AnchorPlan(false,0,r.mode==2,1,new AnchorPlan.Timings(o.placeMs,o.chargeMs,o.coverMs,o.repeatMs,r.mode==2&&o.autoCamera?Math.max(o.timeoutMs,180000/o.cameraSpeed+1000):o.timeoutMs),now);
+  pendingRepeat=null;run=r;clearCrystal();lastStatus="Anchor-Wiederholung gestartet";
+ }
  private void aimSafe(MinecraftClient mc,Run r,AnchorPlan.Action action,long now){
-  if(action==AnchorPlan.Action.PLACE)return;
+  if(action==AnchorPlan.Action.PLACE&&!r.repeating)return;
   if(!mc.mouse.isCursorLocked()){cancel(mc,"Safe-Kamera benötigt gefangenen Mauszeiger");return;}
   if(r.cameraTarget==null||r.cameraAction!=action){
    r.cameraAction=action;r.camera.reset();
-   if(action==AnchorPlan.Action.COVER){
+   if(action==AnchorPlan.Action.COVER||action==AnchorPlan.Action.PLACE){
+    BlockPos target=action==AnchorPlan.Action.COVER?r.cover:r.pos;
     BlockHitResult best=null;double distance=Double.MAX_VALUE;
     for(Direction face:Direction.values()){
-     var hit=PlacementGeometry.supportHit(mc.world,mc.player.getEyePos(),r.cover,face,ShapeContext.of(mc.player));
+     var hit=PlacementGeometry.supportHit(mc.world,mc.player.getEyePos(),target,face,ShapeContext.of(mc.player));
      if(hit!=null&&mc.player.canInteractWithBlockAt(hit.getBlockPos(),0)){
       double d=mc.player.getEyePos().squaredDistanceTo(hit.getPos());if(d<distance){distance=d;best=hit;}
      }
     }
-    if(best==null){cancel(mc,"Keine sichtbare tragfähige Fläche für Glowstone-Deckung");return;}
+    if(best==null){cancel(mc,"Keine sichtbare tragfähige Fläche am festen Spam-Ziel");return;}
     r.cameraTarget=best.getPos();
    }else{
     var point=PlacementGeometry.visibleAnchor(mc.world,mc.player.getEyePos(),r.pos,ShapeContext.of(mc.player));
@@ -253,6 +308,7 @@ public final class SakuraClient implements ClientModInitializer {
   return PlacementGeometry.destination(mc.world,h).equals(pos);
  }
  private void cancel(MinecraftClient mc,String why){
+  pendingRepeat=null;
   if(inputs!=null)inputs.releaseAll();
   if(run!=null){
    restoreCamera(mc,run);

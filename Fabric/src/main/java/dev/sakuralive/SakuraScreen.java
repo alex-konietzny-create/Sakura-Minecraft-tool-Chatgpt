@@ -51,9 +51,9 @@ public final class SakuraScreen extends Screen {
   for(int i=0;i<4;i++){final int n=i;button(7,i==3?242:83+i*43,182,35,Kind.NAV,()->nav[n],()->select(n),()->page==n,"Bereich öffnen");}
   button(882,5,25,23,Kind.BUTTON,()->"×",this::close,()->false,"Menü schließen");
   if(page==1){
-   card(222,119,0,"Anchor","AN","Place, charge and detonate.");
+   card(222,119,0,"Anchor","AN","Halten: am festen Ziel wiederholen.");
    card(571,119,1,"Legit Anchor","LA","Hold your key and keep your aim.");
-   card(222,347,2,"Safe Anchor","SA","Glowstone cover before detonation.");
+   card(222,347,2,"Safe Anchor","SA","Deckung, Kamera und Wiederholung.");
    card(571,347,3,"Double Anchor","DA","Two anchors. One fixed position.");
   }else if(page==0){
    card(222,119,4,"Crystal Assist","CR","Hold crystals and right mouse.");
@@ -65,7 +65,7 @@ public final class SakuraScreen extends Screen {
    button(385,160,131,35,Kind.BUTTON,()->"Ocean Blue",()->{s.blueAccent=true;changed();},()->s.blueAccent,"Blaue Farbwelt der Referenz");
    button(240,235,276,35,Kind.BUTTON,()->"Animationen: "+(!s.reduceMotion?"AN":"AUS"),()->{s.reduceMotion=!s.reduceMotion;changed();},()->!s.reduceMotion,"Reduzierte Bewegung umschalten");
    button(240,286,276,35,Kind.BUTTON,()->"Klare Schrift: "+(s.smoothFont?"AN":"AUS"),()->{s.smoothFont=!s.smoothFont;changed();clearAndInit();},()->s.smoothFont,"Schrift umschalten");
-   number(222,425,"Input press",()->s.systemPulseMs,n->s.systemPulseMs=n,2,100,"ms");
+   number(222,425,"Input press",()->s.systemPulseMs,n->s.systemPulseMs=n,1,100,"ms");
    button(240,368,276,30,Kind.KEY,()->"Menü: "+keyName(SakuraClient.menuKey),()->capture=SakuraClient.menuKey,()->false,"Menü-Hotkey ändern");
   }
  }
@@ -78,7 +78,7 @@ public final class SakuraScreen extends Screen {
   keyRow(x,y+75,module);
   if(module<4){
    var o=SakuraClient.optionsFor(module);
-   number(x,y+104,"Action delay",()->o.placeMs,n->o.actionDelay(n),0,2000,"ms");
+   number(x,y+104,"Action delay",()->o.placeMs,n->{o.actionDelay(n);s.systemPulseMs=Math.min(s.systemPulseMs,Math.max(1,n));},0,2000,"ms");
    if(module==3){
     number(x,y+133,"Repeat delay",()->o.repeatMs,n->o.repeatMs=n,0,2000,"ms");
     number(x,y+162,"Anchor slot",()->o.anchorSlot,n->o.anchorSlot=n,1,9,"");
@@ -267,7 +267,7 @@ public final class SakuraScreen extends Screen {
   }
   c.fill(9,530,187,531,0xFF1E2635);round(c,13,547,33,33,16,0xFF263044);bold(c,"SL",22,558,accent());round(c,39,572,7,7,3,0xFF45C6A0);
   text(c,"Sakura Live",55,551,INK);text(c,"LOCAL CONFIG",55,569,0xFF647088);
-  text(c,"Sakura 0.5.0",222,581,MUTED);
+  text(c,"Sakura 0.5.1",222,581,MUTED);
   String status=now<noticeUntil?notice:hint.isEmpty()?("Bereit".equals(SakuraClient.lastStatus)?"Settings saved locally · macros pause while this menu is open":"Letzter Ablauf: "+SakuraClient.lastStatus):hint;
   text(c,fit(status,555),W-18-Math.min(555,tw(status)),581,now<noticeUntil?accent():0xFF707B91);
   if(capture!=null){
