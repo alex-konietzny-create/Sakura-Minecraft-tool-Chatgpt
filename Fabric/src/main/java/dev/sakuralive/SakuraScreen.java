@@ -241,24 +241,32 @@ public final class SakuraScreen extends Screen {
    if(p.kind==Kind.NAV){
     if(!on&&hover>.01f)round(c,x,y,bw,bh,4,mix(0xFF141517,0xFF172030,hover));
     icon(c,x+14,y+10,value,mix(0xFF737D91,accent(),active));
-    text(c,value,x+36,y+11,mix(MUTED,accent(),active));
+    if(smooth!=null)smooth.glowText(c,value,x+36,y+9,((int)(150+70*Math.max(active,hover))<<24)|(accent()&0xFFFFFF));
+    bold(c,value,x+36,y+11,mix(MUTED,accent(),active));
    }else if(p.kind==Kind.POWER){
     // A real tween drives track color and thumb position on every frame.
     round(c,x-7,y+3,29,16,8,mix(0xFF30394C,accent(),active));
     if(smooth!=null)smooth.glow(c,x-23,y-14,62,50,((int)(active*80+hover*30)<<24)|(accent()&0xFFFFFF));
     int thumb=Math.round(x-4+active*12);
     round(c,thumb,y+6,10,10,5,mix(0xFF8B95A8,0xFFFFFFFF,active));
-   }else if(p.kind==Kind.TITLE)bold(c,value,x,y+3,INK);
+   }else if(p.kind==Kind.TITLE){
+    if(smooth!=null)smooth.glowText(c,value,x,y+1,((int)(185+55*hover)<<24)|(accent()&0xFFFFFF));
+    bold(c,value,x,y+3,INK);
+   }
    else{
     round(c,x,y,bw,bh,5,mix(0xFF25282C,0xFF30354A,Math.max(hover,active*.6f)));
-    String shown=fit(value,bw-10);text(c,shown,x+(bw-tw(shown))/2,y+(bh-10)/2,p.kind==Kind.KEY?INK:mix(MUTED,accent(),Math.max(hover,active)));
+    String shown=fit(value,bw-10);
+    if(value.startsWith("Block Outline")){
+     if(smooth!=null)smooth.glowText(c,shown,x+(bw-tw(shown))/2,y+(bh-10)/2-2,0xC0000000|(accent()&0xFFFFFF));
+     bold(c,shown,x+(bw-tw(shown))/2,y+(bh-10)/2,INK);
+    }else text(c,shown,x+(bw-tw(shown))/2,y+(bh-10)/2,p.kind==Kind.KEY?INK:mix(MUTED,accent(),Math.max(hover,active)));
    }
    if(w.isFocused())c.drawStrokedRectangle(x-1,y-1,bw+2,bh+2,accent());
    if(x>=222&&page!=3)c.getMatrices().popMatrix();
   }
   c.fill(9,530,187,531,0xFF1E2635);round(c,13,547,33,33,16,0xFF263044);bold(c,"SL",22,558,accent());round(c,39,572,7,7,3,0xFF45C6A0);
   text(c,"Sakura Live",55,551,INK);text(c,"LOCAL CONFIG",55,569,0xFF647088);
-  text(c,"Sakura 0.4.2",222,581,MUTED);
+  text(c,"Sakura 0.4.3",222,581,MUTED);
   String status=now<noticeUntil?notice:hint.isEmpty()?"Settings saved locally · macros pause while this menu is open":hint;
   text(c,fit(status,555),W-18-Math.min(555,tw(status)),581,now<noticeUntil?accent():0xFF707B91);
   if(capture!=null){

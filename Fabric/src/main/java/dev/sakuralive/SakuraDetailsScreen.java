@@ -234,7 +234,7 @@ public final class SakuraDetailsScreen extends Screen {
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF7C7485);
-  label(c,"0.4.2 / FABRIC 1.21.11",29,551,0xFF7C7485);
+  label(c,"0.4.3 / FABRIC 1.21.11",29,551,0xFF7C7485);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   title(c,NAMES[tab],210,39,2.25f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);
@@ -297,7 +297,9 @@ public final class SakuraDetailsScreen extends Screen {
    w.setMessage(Text.literal(text+". "+detail));if(over)hover=detail;
    if(p.skin==Skin.NAV){
     round(c,x,y,bw,bh,7,mix(mix(0xFF16131B,0xFF211C27,h),0xFF30202D,on));
-    small(c,text,x+13,y+7,mix(MUTED,INK,on),bw-32);
+    String name=fit(text,bw-32);
+    if(smooth!=null){smooth.glowText(c,name,x+13,y+5,((int)(150+70*Math.max(on,h))<<24)|(PINK&0xFFFFFF));smooth.text(c,name,x+13,y+5,mix(MUTED,INK,on),true);}
+    else small(c,text,x+13,y+7,mix(MUTED,INK,on),bw-32);
     if(p.index<6){round(c,x+bw-17,y+16,4,4,2,SakuraClient.enabled(p.index)?PINK:0xFF65596B);}
    }else if(p.skin==Skin.TAB){
     round(c,x,y,bw,bh,7,mix(0xFF141517,0xFF30202D,on));
@@ -305,7 +307,8 @@ public final class SakuraDetailsScreen extends Screen {
    }else if(p.skin==Skin.HERO){
     round(c,x,y,bw,bh,11,mix(0xFF1B1D20,0xFF25282C,on));
     round(c,x+1,y+12,2,bh-24,1,mix(0xFF645A6A,PINK,on));
-    label(c,text,x+16,y+11,INK);small(c,detail,x+16,y+33,MUTED,bw-97);
+    if(smooth!=null){smooth.glowText(c,text,x+16,y+9,0xCE000000|(PINK&0xFFFFFF));smooth.text(c,text,x+16,y+9,INK,true);}
+    else label(c,text,x+16,y+11,INK);small(c,detail,x+16,y+33,MUTED,bw-97);
     switchAt(c,x+bw-52,y+18,on);
    }else if(p.skin==Skin.SWITCH){
     round(c,x,y,bw,bh,8,mix(0xFF24202A,0xFF332837,h));

@@ -92,7 +92,7 @@ public final class SakuraOutlineScreen extends Screen {
   }
   preview(c,680,37,now);
   text(c,"Vorschau oben · AUS stellt die normale Minecraft-Markierung wieder her.",25,544,0xFFADB0BC);
-  text(c,"Änderungen werden automatisch gespeichert · Sakura 0.4.2",25,570,0xFF7C8190);
+  text(c,"Änderungen werden automatisch gespeichert · Sakura 0.4.3",25,570,0xFF7C8190);
   if(capture){ui.round(c,240,230,440,120,12,0xFA16141B);text(c,"Taste oder Maustaste drücken",265,261,0xFFF4EBF1);text(c,"Esc: abbrechen · Entf: entfernen",265,300,0xFFADB0BC);}
   c.getMatrices().popMatrix();
  }

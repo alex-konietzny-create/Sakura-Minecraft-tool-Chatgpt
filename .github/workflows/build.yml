@@ -20,6 +20,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: SakuraLive-Pink-Fabric-1.21.11
-          path: Fabric/build/libs/SakuraLive-Fabric-0.4.2.jar
+          path: Fabric/build/libs/SakuraLive-Fabric-0.4.3.jar
           if-no-files-found: error
 
