@@ -60,7 +60,7 @@ public final class SakuraDetailsScreen extends Screen {
    return;
   }
   button(210,96,686,56,Skin.HERO,()->NAMES[tab],this::hint,()->SakuraClient.enabled(tab),0,()->{SakuraClient.toggle(tab);changed();});
-  String[] labels=tab<4?new String[]{"Timing","Hotbar","Verhalten"}:new String[]{"Timing","Verhalten"};
+  String[] labels=tab==2?new String[]{"Timing","Hotbar","Verhalten","Kamera"}:tab<4?new String[]{"Timing","Hotbar","Verhalten"}:new String[]{"Timing","Verhalten"};
   for(int i=0;i<labels.length;i++){
    final int n=i;
    button(210+i*126,169,118,29,Skin.TAB,()->labels[n],()->"Einstellungen: "+labels[n],()->section==n,0,()->select(tab,n));
@@ -68,19 +68,22 @@ public final class SakuraDetailsScreen extends Screen {
   var o=SakuraClient.optionsFor(tab);
   if(section==0){
    if(tab<4){
-    slider(230,253,378,"Nach Platzierung",()->o.placeMs,n->o.placeMs=n,10,2000);
-    slider(230,317,378,"Nach dem Laden",()->o.chargeMs,n->o.chargeMs=n,10,2000);
+    slider(230,253,378,"Nach Platzierung",()->o.placeMs,n->o.placeMs=n,0,2000);
+    slider(230,317,378,"Nach dem Laden",()->o.chargeMs,n->o.chargeMs=n,0,2000);
     slider(230,381,378,"Slot-Vorbereitung",()->o.switchMs,n->o.switchMs=n,0,500);
-    if(tab==2)slider(230,445,378,"Nach Glowstone-Deckung",()->o.coverMs,n->o.coverMs=n,10,2000);
-    if(tab==3)slider(230,445,378,"Zwischen beiden Durchläufen",()->o.repeatMs,n->o.repeatMs=n,10,2000);
+    if(tab==2)slider(230,445,378,"Nach Glowstone-Deckung",()->o.coverMs,n->o.coverMs=n,0,2000);
+    if(tab==3)slider(230,445,378,"Zwischen beiden Durchläufen",()->o.repeatMs,n->o.repeatMs=n,0,2000);
    }else if(tab==4){
-    slider(230,253,378,"Vor nächster Platzierung",()->s.crystalPlaceMs,n->s.crystalPlaceMs=n,10,2000);
-    slider(230,337,378,"Vor dem Abbau",()->s.crystalBreakMs,n->s.crystalBreakMs=n,10,2000);
+    slider(230,253,378,"Vor nächster Platzierung",()->s.crystalPlaceMs,n->s.crystalPlaceMs=n,0,2000);
+    slider(230,337,378,"Vor dem Abbau",()->s.crystalBreakMs,n->s.crystalBreakMs=n,0,2000);
     slider(230,421,378,"Bestätigung: Zeitlimit",()->s.crystalTimeoutMs,n->s.crystalTimeoutMs=n,250,10000);
    }else{
     slider(230,253,378,"Platzierpause",()->s.placeDelayMs,n->s.placeDelayMs=n,0,200);
     toggle(230,350,378,"Anchor / Glowstone ausnehmen",()->s.excludeAnchors,()->s.excludeAnchors=!s.excludeAnchors);
    }
+  }else if(tab==2&&section==3){
+   toggle(230,260,378,"Automatische Safe-Kamera",()->o.autoCamera,()->o.autoCamera=!o.autoCamera);
+   slider(230,349,378,"Kameratempo (Grad / Sekunde)",()->o.cameraSpeed,n->o.cameraSpeed=n,30,3600);
   }else if(tab<4&&section==1){
    slots(276,()->o.anchorSlot,n->o.anchorSlot=n,"Anchor-Slot");
    slots(348,()->o.glowSlot,n->o.glowSlot=n,"Glowstone-Slot");
@@ -88,10 +91,17 @@ public final class SakuraDetailsScreen extends Screen {
   }else{
    button(230,255,378,36,Skin.KEY,()->keyName(SakuraClient.keyFor(tab)),()->"Klicken und Taste oder Maustaste drücken",()->false,0,()->capture=SakuraClient.keyFor(tab));
    if(tab<4){
-    button(230,333,378,42,Skin.BUTTON,()->"Zielen bleibt bei dir",()->"Klicks wirken auf dein tatsächliches Fadenkreuz",()->true,0,()->{});
+    button(230,333,378,42,Skin.BUTTON,()->tab==2&&o.autoCamera?"Safe-Kamera ist aktiv":"Zielen bleibt bei dir",()->"Klicks wirken auf dein tatsächliches Fadenkreuz",()->true,0,()->{});
     toggle(230,391,378,"Hotkey gedrückt halten",()->o.holdToRun,()->o.holdToRun=!o.holdToRun);
     slider(230,451,378,"Bestätigung: Zeitlimit",()->o.timeoutMs,n->o.timeoutMs=n,250,10000);
    }
+  }
+  if(section==0&&tab<5){
+   String[] profiles={"Turbo","Schnell","Ruhig"};
+   for(int i=0;i<3;i++){final int profile=i;button(660+i*74,401,68,24,Skin.BUTTON,()->profiles[profile],()->"Setzt alle Aktionspausen gemeinsam",()->false,0,()->{
+    if(tab<4)o.speed(profile);else{s.crystalPlaceMs=s.crystalBreakMs=profile==0?0:profile==1?25:150;}
+    s.systemPulseMs=profile==0?4:profile==1?8:20;changed();clearAndInit();
+   });}
   }
  }
  private void select(int next,int nextSection){flush();tab=next;section=nextSection;pageOpened=System.nanoTime();clearAndInit();}
@@ -234,7 +244,7 @@ public final class SakuraDetailsScreen extends Screen {
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF7C7485);
-  label(c,"0.4.3 / FABRIC 1.21.11",29,551,0xFF7C7485);
+  label(c,"0.5.0 / FABRIC 1.21.11",29,551,0xFF7C7485);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   title(c,NAMES[tab],210,39,2.25f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);
@@ -254,6 +264,9 @@ public final class SakuraDetailsScreen extends Screen {
    label(c,section==0?"ZEITEN IN MILLISEKUNDEN":tab<4&&section==1?"DEINE HOTBAR":"HOTKEY & VERHALTEN",230,232,MUTED);
    if(tab<4&&section==1){
     label(c,"Anchor",230,257,INK);label(c,"Glowstone",230,329,INK);label(c,"Finaler Slot · kein Totem erforderlich",230,401,INK);
+   }else if(tab==2&&section==3){
+    label(c,"Deckungsfläche und Anchor werden nacheinander anvisiert.",230,438,MUTED);
+    small(c,"Höherer Wert = schnellere Kamerabewegung.",230,465,MUTED,378);
    }else if(section>0){
     String note=conflict(SakuraClient.keyFor(tab));
     small(c,note,230,305,note.startsWith("Konflikt")?0xFFFFB490:MUTED,378);

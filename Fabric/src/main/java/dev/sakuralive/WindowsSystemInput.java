@@ -48,7 +48,7 @@ final class WindowsSystemInput implements AutoCloseable {
   watchdog.scheduleAtFixedRate(()->{
    try{boolean safe=foreground()&&gameReady.getAsBoolean()&&System.nanoTime()-heartbeat<250_000_000L;pulse.tick(System.nanoTime(),safe);}
    catch(Throwable e){error="Eingabe-Watchdog: "+e.getMessage();}
-  },10,10,TimeUnit.MILLISECONDS);
+  },5,5,TimeUnit.MILLISECONDS);
  }
  boolean foreground(){
   HWND current=User32.INSTANCE.GetForegroundWindow();
@@ -70,6 +70,13 @@ final class WindowsSystemInput implements AutoCloseable {
  boolean tap(KeyBinding binding,long now,int ms){
   if(!available()||!pulse.idle())return false;
   return pulse.tap(code(binding),now,ms,foreground());
+ }
+ boolean move(int dx,int dy){
+  if(!available()||!foreground()||!gameReady.getAsBoolean())return false;
+  if(dx==0&&dy==0)return true;
+  INPUT input=new INPUT();input.type=new DWORD(INPUT.INPUT_MOUSE);input.input.setType(MOUSEINPUT.class);
+  input.input.mi.dx=new LONG(dx);input.input.mi.dy=new LONG(dy);input.input.mi.dwFlags=new DWORD(1);input.write();
+  if(User32.INSTANCE.SendInput(new DWORD(1),new INPUT[]{input},input.size()).intValue()!=1)throw new IllegalStateException("Windows hat die Mausbewegung abgelehnt");return true;
  }
  void mute(KeyBinding binding){
   var c=code(binding);physical(c);pulse.release(c);

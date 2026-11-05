@@ -65,7 +65,7 @@ public final class SakuraScreen extends Screen {
    button(385,160,131,35,Kind.BUTTON,()->"Ocean Blue",()->{s.blueAccent=true;changed();},()->s.blueAccent,"Blaue Farbwelt der Referenz");
    button(240,235,276,35,Kind.BUTTON,()->"Animationen: "+(!s.reduceMotion?"AN":"AUS"),()->{s.reduceMotion=!s.reduceMotion;changed();},()->!s.reduceMotion,"Reduzierte Bewegung umschalten");
    button(240,286,276,35,Kind.BUTTON,()->"Klare Schrift: "+(s.smoothFont?"AN":"AUS"),()->{s.smoothFont=!s.smoothFont;changed();clearAndInit();},()->s.smoothFont,"Schrift umschalten");
-   number(222,425,"Input press",()->s.systemPulseMs,n->s.systemPulseMs=n,10,100,"ms");
+   number(222,425,"Input press",()->s.systemPulseMs,n->s.systemPulseMs=n,2,100,"ms");
    button(240,368,276,30,Kind.KEY,()->"Menü: "+keyName(SakuraClient.menuKey),()->capture=SakuraClient.menuKey,()->false,"Menü-Hotkey ändern");
   }
  }
@@ -78,19 +78,20 @@ public final class SakuraScreen extends Screen {
   keyRow(x,y+75,module);
   if(module<4){
    var o=SakuraClient.optionsFor(module);
-   number(x,y+104,module==2?"Charge delay":"Delay",()->module==2?o.chargeMs:o.placeMs,n->{if(module==2)o.chargeMs=n;else o.placeMs=n;},10,2000,"ms");
+   number(x,y+104,"Action delay",()->o.placeMs,n->o.actionDelay(n),0,2000,"ms");
    if(module==3){
-    number(x,y+133,"Repeat delay",()->o.repeatMs,n->o.repeatMs=n,10,2000,"ms");
+    number(x,y+133,"Repeat delay",()->o.repeatMs,n->o.repeatMs=n,0,2000,"ms");
     number(x,y+162,"Anchor slot",()->o.anchorSlot,n->o.anchorSlot=n,1,9,"");
     number(x,y+191,"Glowstone slot",()->o.glowSlot,n->o.glowSlot=n,1,9,"");
    }else{
     number(x,y+133,"Anchor slot",()->o.anchorSlot,n->o.anchorSlot=n,1,9,"");
     number(x,y+162,"Glowstone slot",()->o.glowSlot,n->o.glowSlot=n,1,9,"");
-    number(x,y+191,"Final slot",()->o.finalSlot,n->o.finalSlot=n,1,9,"");
+    if(module==2)number(x,y+191,"Camera °/s",()->o.cameraSpeed,n->o.cameraSpeed=n,30,3600,"");
+    else number(x,y+191,"Final slot",()->o.finalSlot,n->o.finalSlot=n,1,9,"");
    }
   }else if(module==4){
-   number(x,y+104,"Place delay",()->s.crystalPlaceMs,n->s.crystalPlaceMs=n,10,2000,"ms");
-   number(x,y+133,"Break delay",()->s.crystalBreakMs,n->s.crystalBreakMs=n,10,2000,"ms");
+   number(x,y+104,"Place delay",()->s.crystalPlaceMs,n->s.crystalPlaceMs=n,0,2000,"ms");
+   number(x,y+133,"Break delay",()->s.crystalBreakMs,n->s.crystalBreakMs=n,0,2000,"ms");
    number(x,y+162,"Timeout",()->s.crystalTimeoutMs,n->s.crystalTimeoutMs=n,250,10000,"ms");
   }else{
    number(x,y+104,"Delay",()->s.placeDelayMs,n->s.placeDelayMs=n,0,200,"ms");
@@ -214,12 +215,12 @@ public final class SakuraScreen extends Screen {
    String[] description=labels.get(row*1000+x).split("\\|",-1);
    text(c,description[0],x+18,row+4,MUTED);
    int bw=description[1].isEmpty()?86:60;
-   round(c,x+210,row-1,bw,23,5,0xFF25282C);c.drawStrokedRectangle(x+211,row, bw-2,21,0xFF252F41);
+   round(c,x+210,row-1,bw,23,5,0xFF25282C);round(c,x+211,row,bw-2,21,4,0xFF22242A);
    if(!description[1].isEmpty())text(c,description[1],x+277,row+4,0xFF626D83);
    if(!w.isFocused()&&!w.getText().equals(Integer.toString(field.get.getAsInt())))w.setText(Integer.toString(field.get.getAsInt()));
    String value=w.getText();
    boolean valid=!value.isEmpty()&&Integer.parseInt(value)>=field.min&&Integer.parseInt(value)<=field.max;
-   if(w.isFocused())c.drawStrokedRectangle(x+210,row-1,bw,23,valid?accent():0xFFFF8C91);
+   if(w.isFocused()){round(c,x+210,row-1,bw,23,5,valid?accent():0xFFFF8C91);round(c,x+211,row,bw-2,21,4,0xFF22242A);}
    text(c,value,w.getX()+1,w.getY()+2,valid?INK:0xFFFF8C91);
    if(w.isFocused()&&(now/500_000_000L)%2==0){
     int cursor=Math.max(0,Math.min(value.length(),w.getCursor()));
@@ -266,8 +267,8 @@ public final class SakuraScreen extends Screen {
   }
   c.fill(9,530,187,531,0xFF1E2635);round(c,13,547,33,33,16,0xFF263044);bold(c,"SL",22,558,accent());round(c,39,572,7,7,3,0xFF45C6A0);
   text(c,"Sakura Live",55,551,INK);text(c,"LOCAL CONFIG",55,569,0xFF647088);
-  text(c,"Sakura 0.4.3",222,581,MUTED);
-  String status=now<noticeUntil?notice:hint.isEmpty()?"Settings saved locally · macros pause while this menu is open":hint;
+  text(c,"Sakura 0.5.0",222,581,MUTED);
+  String status=now<noticeUntil?notice:hint.isEmpty()?("Bereit".equals(SakuraClient.lastStatus)?"Settings saved locally · macros pause while this menu is open":"Letzter Ablauf: "+SakuraClient.lastStatus):hint;
   text(c,fit(status,555),W-18-Math.min(555,tw(status)),581,now<noticeUntil?accent():0xFF707B91);
   if(capture!=null){
    round(c,208,111,698,458,10,0xF0090C15);panel(c,285,222,534,150);

@@ -14,7 +14,7 @@ import net.minecraft.util.Identifier;
 /** Rasterizes at the actual framebuffer density: alpha-covered edges survive GUI scaling. */
 final class SmoothUi implements AutoCloseable {
  private static long nextId;
- private static final int ATLAS=2048,CELL=96,COLS=ATLAS/CELL;
+ private static final int ATLAS=1536,CELL=72,COLS=ATLAS/CELL;
  private final MinecraftClient mc=MinecraftClient.getInstance();
  private final float density;
  private final Map<Float,SmoothUi> headings=new HashMap<>();
@@ -57,7 +57,8 @@ final class SmoothUi implements AutoCloseable {
  }
  private Identifier upload(BufferedImage image){
   var nativeImage=new NativeImage(image.getWidth(),image.getHeight(),false);
-  for(int y=0;y<image.getHeight();y++)for(int x=0;x<image.getWidth();x++)nativeImage.setColorArgb(x,y,image.getRGB(x,y));
+  int[] pixels=image.getRGB(0,0,image.getWidth(),image.getHeight(),null,0,image.getWidth());
+  for(int y=0;y<image.getHeight();y++)for(int x=0;x<image.getWidth();x++)nativeImage.setColorArgb(x,y,pixels[y*image.getWidth()+x]);
   var id=Identifier.of("sakuralive","ui/runtime_"+(nextId++));
   var texture=new NativeImageBackedTexture(()->"Sakura smooth UI",nativeImage);
   mc.getTextureManager().registerTexture(id,texture);texture.upload();owned.add(id);return id;

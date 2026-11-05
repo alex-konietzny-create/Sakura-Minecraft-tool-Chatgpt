@@ -13,8 +13,8 @@ final class CrystalCycle {
  void reset(){stage=Stage.READY;due=expires=0;trackedId=-1;}
  Action poll(long now,int targetId,boolean canPlace,boolean trackedAlive,boolean sameTarget,Timings t){
   if(stage==Stage.WAIT_REMOVAL){
-   if(trackedAlive&&now-expires<0)return Action.NONE;
-   trackedId=-1;stage=Stage.COOLDOWN;due=now+AnchorPlan.ms(t.placeMs);return Action.NONE;
+   if(trackedAlive&&now-expires<0)return targetId==trackedId&&sameTarget&&now-due>=0?Action.BREAK:Action.NONE;
+   trackedId=-1;stage=Stage.COOLDOWN;due=now+AnchorPlan.ms(t.placeMs);if(t.placeMs>0)return Action.NONE;
   }
   if(stage==Stage.WAIT_SPAWN){
    if(!sameTarget){reset();return Action.NONE;}
@@ -35,6 +35,7 @@ final class CrystalCycle {
   due=now+AnchorPlan.ms(accepted?t.breakMs:t.placeMs);expires=now+AnchorPlan.ms(t.timeoutMs);
  }
  void attacked(int id,long now,Timings t){
-  trackedId=id;stage=Stage.WAIT_REMOVAL;expires=now+AnchorPlan.ms(t.timeoutMs);
+  if(stage!=Stage.WAIT_REMOVAL||trackedId!=id)expires=now+AnchorPlan.ms(t.timeoutMs);
+  trackedId=id;stage=Stage.WAIT_REMOVAL;due=now+AnchorPlan.ms(Math.max(50,t.breakMs));
  }
 }

@@ -14,6 +14,7 @@ final class SakuraNativeSmoke {
  private static WindowsSystemInput input;
  private static Target target;
  private static KeyBinding testKey;
+ private static double baseX,baseY;
  private static void fail(String why){if(input!=null)input.close();MinecraftClient.getInstance().scheduleStop();throw new IllegalStateException("Native loopback: "+why);}
  static void install(){ClientTickEvents.END_CLIENT_TICK.register(mc->{
   if(mc.getOverlay()!=null||wait-->0)return;
@@ -42,7 +43,16 @@ final class SakuraNativeSmoke {
    if(stage==3){
     if(target.clicks<1)return;
     if(GLFW.glfwGetKey(mc.getWindow().getHandle(),GLFW.GLFW_KEY_F24)!=GLFW.GLFW_RELEASE||GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),1)!=GLFW.GLFW_RELEASE)return;
+    GLFW.glfwSetInputMode(mc.getWindow().getHandle(),GLFW.GLFW_CURSOR,GLFW.GLFW_CURSOR_DISABLED);
+    if(GLFW.glfwRawMouseMotionSupported())GLFW.glfwSetInputMode(mc.getWindow().getHandle(),GLFW.GLFW_RAW_MOUSE_MOTION,GLFW.GLFW_FALSE);
+    stage=4;wait=4;return;
+   }
+   if(stage==4){baseX=mc.mouse.getX();baseY=mc.mouse.getY();input.move(24,8);stage=5;wait=4;return;}
+   if(stage==5){
+    if(Math.hypot(mc.mouse.getX()-baseX,mc.mouse.getY()-baseY)<1){fail("captured cursor did not receive native movement");return;}
+    GLFW.glfwSetInputMode(mc.getWindow().getHandle(),GLFW.GLFW_CURSOR,GLFW.GLFW_CURSOR_NORMAL);
     input.close();input=null;
+    System.out.println("[Sakura native smoke] PASS: relative SendInput movement received with captured cursor and raw mode temporarily disabled.");
     System.out.println("[Sakura native smoke] PASS: actual Windows SendInput F24 and right-click received through Minecraft GLFW callbacks; both released. Empty test screen, no gameplay.");
     mc.scheduleStop();wait=Integer.MAX_VALUE;
    }

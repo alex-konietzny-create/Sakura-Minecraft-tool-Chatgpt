@@ -1,6 +1,6 @@
 plugins { id 'fabric-loom' version '1.14-SNAPSHOT' }
 group='dev.sakuralive'
-version='0.4.3'
+version='0.5.0'
 base { archivesName='SakuraLive-Fabric' }
 repositories { mavenCentral(); maven { url='https://maven.fabricmc.net/' } }
 dependencies {
@@ -51,3 +51,9 @@ tasks.register('outlineRegression',JavaExec) {
  mainClass='dev.sakuralive.OutlineGeometryTest'
 }
 tasks.named('check') { dependsOn 'outlineRegression' }
+
+tasks.register('cameraRegression',JavaExec) { dependsOn tasks.named('regressionClasses'); classpath=sourceSets.regression.runtimeClasspath; mainClass='dev.sakuralive.CameraMotionTest' }
+tasks.named('check') { dependsOn 'cameraRegression' }
+
+tasks.register('speedRegression',JavaExec) { dependsOn tasks.named('regressionClasses'); classpath=sourceSets.regression.runtimeClasspath; mainClass='dev.sakuralive.SpeedRegressionTest' }
+tasks.named('check') { dependsOn 'speedRegression' }

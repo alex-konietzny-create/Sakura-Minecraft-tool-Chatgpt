@@ -10,6 +10,9 @@ public final class CrystalCycleTest {
   eq(p.poll(at(20),4,false,false,true,T),CrystalCycle.Action.NONE);
   eq(p.poll(at(70),4,false,false,true,T),CrystalCycle.Action.BREAK);
   p.attacked(4,at(70),T);
+  eq(p.poll(at(139),4,false,true,true,T),CrystalCycle.Action.NONE);
+  eq(p.poll(at(140),4,false,true,true,T),CrystalCycle.Action.BREAK);
+  p.attacked(4,at(140),T);
   eq(p.poll(at(200),4,false,true,true,T),CrystalCycle.Action.NONE);
   eq(p.poll(at(201),-1,true,false,true,T),CrystalCycle.Action.NONE);
   eq(p.poll(at(280),-1,true,false,true,T),CrystalCycle.Action.NONE);
