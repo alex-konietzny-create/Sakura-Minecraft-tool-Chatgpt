@@ -24,7 +24,7 @@ public final class SakuraSettings {
  public static final class AnchorOptions {
   public int anchorSlot=1,glowSlot=2,finalSlot=9;
   public int placeMs=25,chargeMs=25,switchMs=0,coverMs=25,repeatMs=75,timeoutMs=2000;
-  public boolean autoSlots=true,autoCamera=true,repeatWhileHeld=true,bundledInput=true;
+  public boolean doubleBurst=true,autoSlots=true,autoCamera=true,repeatWhileHeld=true,bundledInput=true;
   public int cameraSpeed=900;
   public void speed(int profile){placeMs=chargeMs=coverMs=profile==0?0:profile==1?25:150;switchMs=profile==2?35:0;repeatMs=profile==0?0:profile==1?75:200;}
   public void actionDelay(int value){placeMs=chargeMs=coverMs=repeatMs=value;switchMs=Math.min(switchMs,value/2);}

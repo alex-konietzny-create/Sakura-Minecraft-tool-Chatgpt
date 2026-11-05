@@ -52,6 +52,7 @@ public final class SakuraClient implements ClientModInitializer {
   net.minecraft.block.BlockState confirmedAnchor,confirmedCover;
   AnchorPlan.Action sentAction=AnchorPlan.Action.NONE;
   int sentSlot=-1;
+  final DoubleClickBurst burst=new DoubleClickBurst();
  }
  @Override public void onInitializeClient(){
   instance=this;
@@ -187,12 +188,12 @@ public final class SakuraClient implements ClientModInitializer {
    return;
   }
   lastStatus=(r.mode==3?"Double "+(r.plan.completed()+1)+"/2 · ":"")+r.plan.stage().name();
-  if(action==AnchorPlan.Action.NONE)return;
-  // Fire is replaceable for block placement but can steal the following charge ray.
-  if(mc.crosshairTarget instanceof BlockHitResult fire && (mc.world.getBlockState(fire.getBlockPos()).isOf(Blocks.FIRE)||mc.world.getBlockState(fire.getBlockPos()).isOf(Blocks.SOUL_FIRE))){
-   if(mc.player.canInteractWithBlockAt(fire.getBlockPos(),0)&&fire.getBlockPos().getSquaredDistance(r.pos)<=9){inputs.tap(mc.options.attackKey,now,settings.systemPulseMs);lastStatus="Störendes Feuer entfernen";return;}
+  if(action==AnchorPlan.Action.NONE){
+   if(r.mode==3&&o.doubleBurst&&r.plan.completed()==0&&r.plan.stage()==AnchorPlan.Stage.WAIT_REMOVED&&r.sentAction==AnchorPlan.Action.DETONATE&&r.useGate.accepted()&&mc.player.getMainHandStack().isOf(Items.RESPAWN_ANCHOR)&&r.burst.ready(now)){
+    if(inputs.tap(mc.options.useKey,now,settings.systemPulseMs))r.burst.sent(now,settings.systemPulseMs);
+   }
+   return;
   }
-  if(mc.interactionManager.isBreakingBlock()){lastStatus="Feuer-Klick abschließen";return;}
   // Native clicks can act only on the actual vanilla crosshair target.
   boolean aimed=switch(action){
    case PLACE->aimsAtPlacement(mc,r.pos);
@@ -232,7 +233,7 @@ public final class SakuraClient implements ClientModInitializer {
     if(!aimed){if(automaticAim(r))aimSafe(mc,r,action,now);return;}
     if(mc.player.isUsingItem()){inputs.mute(mc.options.useKey);return;}
     if(inputs.slotAndUse(slotBinding(mc,slot),mc.options.useKey,now,settings.systemPulseMs)){
-     r.pendingSlot=slot;r.batched=true;r.slotDeadline=now+AnchorPlan.ms(Math.max(750,o.timeoutMs));r.lastUseTick=inputTick;r.sentAction=action;r.sentSlot=slot;r.useGate.arm();r.interactionRefused=false;r.cameraTarget=null;r.camera.reset();r.plan.confirm(action,true,now);
+     r.pendingSlot=slot;r.batched=true;r.slotDeadline=now+AnchorPlan.ms(Math.max(750,o.timeoutMs));r.lastUseTick=inputTick;r.sentAction=action;r.sentSlot=slot;r.useGate.arm();r.interactionRefused=false;r.cameraTarget=null;r.camera.reset();r.plan.confirm(action,true,now);if(r.mode==3&&action==AnchorPlan.Action.DETONATE&&r.plan.completed()==0)r.burst.sent(now,settings.systemPulseMs);
     }
     return;
    }
@@ -248,7 +249,7 @@ public final class SakuraClient implements ClientModInitializer {
   r.cameraTarget=null;r.camera.reset();
   if(mc.player.isUsingItem()){inputs.mute(mc.options.useKey);lastStatus="Benutzen-Taste freigeben, dann Anchor fortsetzen";return;}
   if(inputs.tap(mc.options.useKey,now,settings.systemPulseMs)){
-   r.lastUseTick=inputTick;r.sentAction=action;r.sentSlot=slot;r.useGate.arm();r.interactionRefused=false;r.cameraTarget=null;r.camera.reset();r.plan.confirm(action,true,now);
+   r.lastUseTick=inputTick;r.sentAction=action;r.sentSlot=slot;r.useGate.arm();r.interactionRefused=false;r.cameraTarget=null;r.camera.reset();r.plan.confirm(action,true,now);if(r.mode==3&&action==AnchorPlan.Action.DETONATE&&r.plan.completed()==0)r.burst.sent(now,settings.systemPulseMs);
   }
 
  }

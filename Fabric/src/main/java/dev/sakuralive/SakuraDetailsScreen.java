@@ -83,6 +83,7 @@ public final class SakuraDetailsScreen extends Screen {
    }
   }else if(tab<4&&section==((tab==2||tab==3)?4:3)){
    toggle(230,260,378,"Slot und Klick bündeln",()->o.bundledInput,()->o.bundledInput=!o.bundledInput);
+    if(tab==3)toggle(230,305,378,"Anchor-Klickserie · maximal 20",()->o.doubleBurst,()->o.doubleBurst=!o.doubleBurst);
    slider(230,349,378,"Eingabepuls",()->s.systemPulseMs,n->s.systemPulseMs=n,1,100);
   }else if((tab==2||tab==3)&&section==3){
    toggle(230,260,378,tab==2?"Automatische Safe-Kamera":"Zweiten Anchor wieder anvisieren",()->o.autoCamera,()->o.autoCamera=!o.autoCamera);
@@ -250,7 +251,7 @@ public final class SakuraDetailsScreen extends Screen {
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF9EADC7);
-  label(c,"0.6.2 / FABRIC 1.21.11",29,551,0xFF9EADC7);
+  label(c,"0.6.3 / FABRIC 1.21.11",29,551,0xFF9EADC7);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   ModuleArt.draw(c,tab,210,40,1.8f);title(c,NAMES[tab],248,39,1.9f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);

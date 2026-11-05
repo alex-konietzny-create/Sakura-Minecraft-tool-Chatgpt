@@ -34,6 +34,8 @@ public final class CleanAnchorTest {
    }
    check(plan.done()&&plan.completed()==2,"both cycles complete with "+delay+"ms confirmations");
   }
+  var burst=new DoubleClickBurst();long time=0;for(int i=0;i<20;i++){check(burst.ready(time),"burst has next native click");burst.sent(time,8);check(!burst.ready(time),"no overlapping burst pulse");time+=9_000_000;}
+  check(!burst.ready(time+1_000_000_000),"burst hard limit is 20, never infinite spam");
   System.out.println("PASS: shared/disabled hotkeys, single accepted use, moved-target and wrong-slot rejection, existing-anchor charge entry and no duplicate place retry");
  }
 }
