@@ -251,7 +251,7 @@ public final class SakuraDetailsScreen extends Screen {
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF9EADC7);
-  label(c,"0.6.3 / FABRIC 1.21.11",29,551,0xFF9EADC7);
+  label(c,"0.6.4 / FABRIC 1.21.11",29,551,0xFF9EADC7);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   ModuleArt.draw(c,tab,210,40,1.8f);title(c,NAMES[tab],248,39,1.9f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);

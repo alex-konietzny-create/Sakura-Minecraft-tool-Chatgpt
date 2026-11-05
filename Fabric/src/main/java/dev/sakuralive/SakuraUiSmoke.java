@@ -64,6 +64,15 @@ final class SakuraUiSmoke {
   try{Class.forName("net.minecraft.client.network.ClientPlayerInteractionManager");}catch(ClassNotFoundException e){throw new IllegalStateException(e);}
   System.out.println("[Sakura UI smoke] PASS: Minecraft interaction manager with guard mixin loaded");
   InteriorLines.layer();
+  var glowSlotKey=mc.options.hotbarKeys[1];var originalSlotKey=InputUtil.fromTranslationKey(glowSlotKey.getBoundKeyTranslationKey());
+  try{
+   glowSlotKey.setBoundKey(InputUtil.Type.KEYSYM.createFromCode(GLFW.GLFW_KEY_CAPS_LOCK));KeyBinding.updateKeysByCode();
+   var caps=WindowsSystemInput.code(glowSlotKey);check(!caps.mouse()&&caps.physicalVk()==0x14&&caps.value()==0x14,"Caps Lock hotbar mapping uses VK_CAPITAL");
+   var down=WindowsSystemInput.event(caps,true);var up=WindowsSystemInput.event(caps,false);
+   check(down.input.ki.wVk.intValue()==0x14&&down.input.ki.dwFlags.intValue()==0&&up.input.ki.wVk.intValue()==0x14&&up.input.ki.dwFlags.intValue()==2,"Caps Lock native press/release structures");
+   check(glowSlotKey.matchesKey(new KeyInput(GLFW.GLFW_KEY_CAPS_LOCK,0,0)),"rebound Glowstone hotbar key matches Caps Lock");
+  }finally{glowSlotKey.setBoundKey(originalSlotKey);KeyBinding.updateKeysByCode();}
+  System.out.println("[Sakura UI smoke] PASS: Caps Lock as Glowstone hotbar key; native VK_CAPITAL press/release structures. No OS key injected.");
   verifyFirePlacement();
   var s=SakuraClient.settings;boolean motion=s.reduceMotion,anchor=s.anchor,blue=s.blueAccent;
   boolean holdRepeat=s.anchorOptions.repeatWhileHeld;
