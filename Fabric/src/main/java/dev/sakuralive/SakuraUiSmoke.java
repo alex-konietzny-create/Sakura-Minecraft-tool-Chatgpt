@@ -60,6 +60,20 @@ final class SakuraUiSmoke {
  }
 
 
+ private static void verifyAmcProfile(MinecraftClient mc){
+  var s=SakuraClient.settings;var original=s.doubleOptions;int pulse=s.systemPulseMs;boolean motion=s.reduceMotion;var previous=mc.currentScreen;
+  s.doubleOptions=new SakuraSettings.AnchorOptions();s.doubleOptions.anchorSlot=8;s.doubleOptions.glowSlot=6;s.doubleOptions.finalSlot=4;s.reduceMotion=true;
+  try{
+   var screen=new SakuraDetailsScreen(3,0);mc.setScreen(screen);
+   double scale=Math.max(.01,Math.min(1.2,Math.min((screen.width-20.0)/920,(screen.height-20.0)/580)));
+   var click=new Click((screen.width-scale*920)/2+849*scale,(screen.height-scale*580)/2+413*scale,new MouseInput(0,0));screen.mouseClicked(click,false);screen.mouseReleased(click);
+   var o=s.doubleOptions;var saved=SakuraSettings.load().doubleOptions;
+   check(o.amcSequence&&o.placeMs==24&&o.chargeMs==24&&o.switchMs==24&&o.doublePulseMs==24&&!o.bundledInput,"AMC profile applies separate 24ms phases and pulse");
+   check(saved.anchorSlot==8&&saved.glowSlot==6&&saved.finalSlot==4,"AMC preserves and persists user's three custom slots");
+   check(s.systemPulseMs==pulse,"Double AMC cannot slow the normal Anchor input pulse");
+   System.out.println("[Sakura UI smoke] PASS: AMC 24ms profile preserves custom Anchor/Glowstone/final slots and normal Anchor pulse.");
+  }finally{s.doubleOptions=original;s.systemPulseMs=pulse;s.reduceMotion=motion;s.save();mc.setScreen(previous);}
+ }
  private static void verify(MinecraftClient mc){
   try{Class.forName("net.minecraft.client.network.ClientPlayerInteractionManager");}catch(ClassNotFoundException e){throw new IllegalStateException(e);}
   System.out.println("[Sakura UI smoke] PASS: Minecraft interaction manager with guard mixin loaded");
@@ -74,6 +88,7 @@ final class SakuraUiSmoke {
   }finally{glowSlotKey.setBoundKey(originalSlotKey);KeyBinding.updateKeysByCode();}
   System.out.println("[Sakura UI smoke] PASS: Caps Lock as Glowstone hotbar key; native VK_CAPITAL press/release structures. No OS key injected.");
   verifyFirePlacement();
+  verifyAmcProfile(mc);
   var s=SakuraClient.settings;boolean motion=s.reduceMotion,anchor=s.anchor,blue=s.blueAccent;
   boolean holdRepeat=s.anchorOptions.repeatWhileHeld;
   int pulse=s.systemPulseMs,repeat=s.anchorOptions.repeatMs,cam=s.safeOptions.cameraSpeed;boolean autoCam=s.safeOptions.autoCamera;

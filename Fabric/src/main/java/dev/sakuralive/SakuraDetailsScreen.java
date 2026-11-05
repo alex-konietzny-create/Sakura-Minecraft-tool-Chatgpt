@@ -83,8 +83,8 @@ public final class SakuraDetailsScreen extends Screen {
    }
   }else if(tab<4&&section==((tab==2||tab==3)?4:3)){
    toggle(230,260,378,"Slot und Klick bündeln",()->o.bundledInput,()->o.bundledInput=!o.bundledInput);
-    if(tab==3)toggle(230,305,378,"Anchor-Klickserie · maximal 20",()->o.doubleBurst,()->o.doubleBurst=!o.doubleBurst);
-   slider(230,349,378,"Eingabepuls",()->s.systemPulseMs,n->s.systemPulseMs=n,1,100);
+    if(tab==3&&!o.amcSequence)toggle(230,305,378,"Anchor-Klickserie · maximal 20",()->o.doubleBurst,()->o.doubleBurst=!o.doubleBurst);
+   slider(230,349,378,"Eingabepuls",()->tab==3?o.doublePulseMs:s.systemPulseMs,n->{if(tab==3)o.doublePulseMs=n;else s.systemPulseMs=n;},1,100);
   }else if((tab==2||tab==3)&&section==3){
    toggle(230,260,378,tab==2?"Automatische Safe-Kamera":"Zweiten Anchor wieder anvisieren",()->o.autoCamera,()->o.autoCamera=!o.autoCamera);
    slider(230,349,378,"Kameratempo (Grad / Sekunde)",()->o.cameraSpeed,n->o.cameraSpeed=n,30,3600);
@@ -98,17 +98,25 @@ public final class SakuraDetailsScreen extends Screen {
    button(230,255,378,36,Skin.KEY,()->keyName(SakuraClient.keyFor(tab)),()->"Klicken und Taste oder Maustaste drücken",()->false,0,()->capture=SakuraClient.keyFor(tab));
    if(tab<4){
     if(tab==0||tab==2)toggle(230,333,378,"Wiederholen beim Gedrückthalten",()->o.repeatWhileHeld,()->o.repeatWhileHeld=!o.repeatWhileHeld);
+    else if(tab==3)toggle(230,333,378,"AMC-Reihenfolge · deine Slots",()->o.amcSequence,()->o.amcSequence=!o.amcSequence);
     else button(230,333,378,42,Skin.BUTTON,()->"Zielen bleibt bei dir",()->"Klicks wirken auf dein tatsächliches Fadenkreuz",()->true,0,()->{});
     toggle(230,391,378,"Hotkey gedrückt halten",()->o.holdToRun,()->o.holdToRun=!o.holdToRun);
     slider(230,451,378,"Bestätigung: Zeitlimit",()->o.timeoutMs,n->o.timeoutMs=n,250,10000);
    }
   }
   if(section==0&&tab<5){
-   String[] profiles={"Turbo","Schnell","Ruhig"};
-   for(int i=0;i<3;i++){final int profile=i;button(660+i*74,401,68,24,Skin.BUTTON,()->profiles[profile],()->"Setzt alle Aktionspausen gemeinsam",()->(tab<4?o.placeMs:s.crystalPlaceMs)==(profile==0?0:profile==1?25:150)&&(tab<4?o.chargeMs:s.crystalBreakMs)==(profile==0?0:profile==1?25:150),0,()->{
-    if(tab<4)o.speed(profile);else{s.crystalPlaceMs=s.crystalBreakMs=profile==0?0:profile==1?25:150;}
-    s.systemPulseMs=profile==0?1:profile==1?8:20;changed();clearAndInit();
-   });}
+   String[] profiles=tab==3?new String[]{"Turbo","Schnell","Ruhig","AMC"}:new String[]{"Turbo","Schnell","Ruhig"};
+   for(int i=0;i<profiles.length;i++){final int profile=i;int step=tab==3?55:74,bw=tab==3?50:68;
+    button(660+i*step,401,bw,24,Skin.BUTTON,()->profiles[profile],()->profile==3?"Dateivorlage: 24 ms, eigene Slots bleiben erhalten":"Setzt alle Aktionspausen gemeinsam",()->profile==3?o.amcSequence&&o.placeMs==24&&o.chargeMs==24&&o.switchMs==24:(tab<4?o.placeMs:s.crystalPlaceMs)==(profile==0?0:profile==1?25:150)&&(tab<4?o.chargeMs:s.crystalBreakMs)==(profile==0?0:profile==1?25:150),0,()->{
+     if(profile==3){o.amcSequence=true;o.placeMs=o.chargeMs=o.switchMs=o.repeatMs=24;o.doublePulseMs=24;o.bundledInput=false;}
+     else {
+      if(tab<4)o.speed(profile);else{s.crystalPlaceMs=s.crystalBreakMs=profile==0?0:profile==1?25:150;}
+      if(tab==3)o.doublePulseMs=profile==0?1:profile==1?8:20;else s.systemPulseMs=profile==0?1:profile==1?8:20;
+     }
+     changed();clearAndInit();
+    });
+   }
+
   }
  }
  private void select(int next,int nextSection){flush();tab=next;section=nextSection;pageOpened=System.nanoTime();clearAndInit();}
@@ -251,7 +259,7 @@ public final class SakuraDetailsScreen extends Screen {
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF9EADC7);
-  label(c,"0.6.4 / FABRIC 1.21.11",29,551,0xFF9EADC7);
+  label(c,"0.6.5 / FABRIC 1.21.11",29,551,0xFF9EADC7);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   ModuleArt.draw(c,tab,210,40,1.8f);title(c,NAMES[tab],248,39,1.9f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);

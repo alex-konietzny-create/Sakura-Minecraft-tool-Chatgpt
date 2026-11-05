@@ -12,7 +12,7 @@ public final class CameraMotionTest {
  public static void main(String[] args){
   for(int fps:new int[]{60,120,240})for(boolean inverted:new boolean[]{false,true})check(simulate(fps,900,inverted,2)<1,"converges across FPS / inversion / pointer gain");
   check(simulate(120,30,false,1)>10,"camera speed setting changes actual travel");
-  var c=new CameraMotion();var s=c.step(179,0,-179,0,.5,false,false,900,1);check(s.dx()>0&&s.dx()<20,"shortest yaw wrap");
+  var c=new CameraMotion();var s=c.step(179,0,-179,0,.5,false,false,900,1);check(s.dx()>=0&&s.dx()<20,"shortest yaw wrap starts without reversing");s=c.step(179,0,-179,0,.5,false,false,900,8_333_334L);check(s.dx()>0&&s.dx()<20,"smooth ramp takes shortest yaw path");
   boolean stalled=false;for(int i=0;i<80;i++)stalled|=c.step(0,0,90,0,.5,false,false,900,20_000_000L+i*10_000_000L).stalled();check(stalled,"unresponsive OS movement stops");
   var disturbed=new CameraMotion();double yaw=0,pitch=0;long now=1;
   for(int i=0;i<300;i++){var step=disturbed.step(yaw,pitch,90,25,.5,false,false,900,now);yaw+=step.dx()*.15;pitch+=step.dy()*.15;if(i==15)yaw-=35;if(i==30)pitch+=20;now+=8_333_333;}

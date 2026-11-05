@@ -23,6 +23,9 @@ public final class SakuraClient implements ClientModInitializer {
  public static String lastStatus="Bereit";
  private static SakuraClient instance;
  private Run run;
+ private SlotReturn returnSlot;
+ private net.minecraft.client.gui.screen.Screen returnScreen;
+ private Object returnWorld,returnPlayer;
  private long inputTick;
  private PendingRepeat pendingRepeat;
  private static final class PendingRepeat {Run source;boolean queued;long freeSince,deadline;}
@@ -91,6 +94,7 @@ public final class SakuraClient implements ClientModInitializer {
   inputTick++;
   while(Hotkeys.take(7)||menuKey.wasPressed())mc.setScreen(new SakuraScreen());
   while(Hotkeys.take(6)||outlineKey.wasPressed()){settings.outline.enabled=!settings.outline.enabled;settings.save();}
+  if(returnSlot!=null){drain();return;}
   if(!ready(mc)){cancel(mc,"Menü / Spiel pausiert");drain();return;}
   while(Hotkeys.take(4)||crystalKey.wasPressed()){toggle(4);settings.save();}
   while(Hotkeys.take(5)||fastKey.wasPressed()){toggle(5);settings.save();}
@@ -145,6 +149,7 @@ public final class SakuraClient implements ClientModInitializer {
  private void advance(MinecraftClient mc){
   long now=System.nanoTime();
   if(inputs!=null)inputs.tick(now,ready(mc));
+  if(returnSlot!=null){advanceReturn(mc,now);return;}
   if(!ready(mc)){cancel(mc,"Unterbrochen");clearCrystal();fastHeld=false;return;}
   if(!ensureInputs(mc))return;
   try{advanceInputs(mc,now);}
@@ -165,8 +170,9 @@ public final class SakuraClient implements ClientModInitializer {
   if(crystalActive(mc)){fastHeld=false;crystal(mc,now);}
   else {clearCrystal();fastPlace(mc,now);}
  }
+ private static String stageLabel(AnchorPlan.Stage stage){return switch(stage){case PLACE->"Anchor setzen";case WAIT_ANCHOR->"Anchor bestätigen";case CHARGE->"Glowstone laden";case WAIT_CHARGE->"Ladung bestätigen";case COVER->"Deckung setzen";case WAIT_COVER->"Deckung bestätigen";case DETONATE->"Auslösen";case WAIT_REMOVED->"Explosion bestätigen";case FINISHED->"Fertig";case CANCELLED->"Gestoppt";};}
  private void advanceAnchor(MinecraftClient mc,long now){
-  var r=run;var o=r.options;
+  var r=run;var o=r.options;int pulse=r.mode==3?o.doublePulseMs:settings.systemPulseMs;
   int selected=mc.player.getInventory().getSelectedSlot();
   if(!enabled(r.mode)||(o.holdToRun&&!inputs.physical(r.key))){cancel(mc,"Losgelassen / deaktiviert");return;}
   if(r.pendingSlot>=0){
@@ -187,10 +193,10 @@ public final class SakuraClient implements ClientModInitializer {
    else cancel(mc,r.plan.reason());
    return;
   }
-  lastStatus=(r.mode==3?"Double "+(r.plan.completed()+1)+"/2 · ":"")+r.plan.stage().name();
+  lastStatus=(r.mode==3?"Double "+(r.plan.completed()+1)+"/2 · ":"")+stageLabel(r.plan.stage());
   if(action==AnchorPlan.Action.NONE){
-   if(r.mode==3&&o.doubleBurst&&r.plan.completed()==0&&r.plan.stage()==AnchorPlan.Stage.WAIT_REMOVED&&r.sentAction==AnchorPlan.Action.DETONATE&&r.useGate.accepted()&&mc.player.getMainHandStack().isOf(Items.RESPAWN_ANCHOR)&&r.burst.ready(now)){
-    if(inputs.tap(mc.options.useKey,now,settings.systemPulseMs))r.burst.sent(now,settings.systemPulseMs);
+   if(r.mode==3&&!o.amcSequence&&o.doubleBurst&&r.plan.completed()==0&&r.plan.stage()==AnchorPlan.Stage.WAIT_REMOVED&&r.sentAction==AnchorPlan.Action.DETONATE&&r.useGate.accepted()&&mc.player.getMainHandStack().isOf(Items.RESPAWN_ANCHOR)&&r.burst.ready(now)){
+    if(inputs.tap(mc.options.useKey,now,pulse))r.burst.sent(now,pulse);
    }
    return;
   }
@@ -207,7 +213,7 @@ public final class SakuraClient implements ClientModInitializer {
      ||!mc.world.getOtherEntities(null,new Box(r.cover)).isEmpty())){
    cancel(mc,"Deckungsposition nicht frei");return;
   }
-  boolean firstDoubleBlast=r.mode==3&&r.plan.completed()==0;
+  boolean firstDoubleBlast=r.mode==3&&!o.amcSequence&&r.plan.completed()==0;
   int slot=switch(action){case PLACE->o.anchorSlot-1;case CHARGE,COVER->o.glowSlot-1;default->firstDoubleBlast?o.anchorSlot-1:o.finalSlot-1;};
   final var desired=action;
   if(o.autoSlots)slot=HotbarChoice.choose(slot,i->{var item=mc.player.getInventory().getStack(i);return switch(desired){case PLACE->item.isOf(Items.RESPAWN_ANCHOR);case CHARGE,COVER->item.isOf(Items.GLOWSTONE);default->firstDoubleBlast?item.isOf(Items.RESPAWN_ANCHOR):!item.isOf(Items.GLOWSTONE);};});
@@ -232,12 +238,12 @@ public final class SakuraClient implements ClientModInitializer {
    if(o.bundledInput&&o.switchMs==0&&latency(mc)<50){
     if(!aimed){if(automaticAim(r))aimSafe(mc,r,action,now);return;}
     if(mc.player.isUsingItem()){inputs.mute(mc.options.useKey);return;}
-    if(inputs.slotAndUse(slotBinding(mc,slot),mc.options.useKey,now,settings.systemPulseMs)){
-     r.pendingSlot=slot;r.batched=true;r.slotDeadline=now+AnchorPlan.ms(Math.max(750,o.timeoutMs));r.lastUseTick=inputTick;r.sentAction=action;r.sentSlot=slot;r.useGate.arm();r.interactionRefused=false;r.cameraTarget=null;r.camera.reset();r.plan.confirm(action,true,now);if(r.mode==3&&action==AnchorPlan.Action.DETONATE&&r.plan.completed()==0)r.burst.sent(now,settings.systemPulseMs);
+    if(inputs.slotAndUse(slotBinding(mc,slot),mc.options.useKey,now,pulse)){
+     r.pendingSlot=slot;r.batched=true;r.slotDeadline=now+AnchorPlan.ms(Math.max(750,o.timeoutMs));r.lastUseTick=inputTick;r.sentAction=action;r.sentSlot=slot;r.useGate.arm();r.interactionRefused=false;r.cameraTarget=null;r.camera.reset();r.plan.confirm(action,true,now);if(r.mode==3&&action==AnchorPlan.Action.DETONATE&&r.plan.completed()==0)r.burst.sent(now,pulse);
     }
     return;
    }
-   if(slotInput(mc,slot,now)){r.pendingSlot=slot;r.slotDeadline=now+AnchorPlan.ms(Math.max(750,o.timeoutMs));}
+   if(inputs.tap(slotBinding(mc,slot),now,pulse)){r.pendingSlot=slot;r.slotDeadline=now+AnchorPlan.ms(Math.max(750,o.timeoutMs));}
    if(!aimed&&automaticAim(r))aimSafe(mc,r,action,now);
    return;
   }
@@ -248,12 +254,13 @@ public final class SakuraClient implements ClientModInitializer {
   }
   r.cameraTarget=null;r.camera.reset();
   if(mc.player.isUsingItem()){inputs.mute(mc.options.useKey);lastStatus="Benutzen-Taste freigeben, dann Anchor fortsetzen";return;}
-  if(inputs.tap(mc.options.useKey,now,settings.systemPulseMs)){
-   r.lastUseTick=inputTick;r.sentAction=action;r.sentSlot=slot;r.useGate.arm();r.interactionRefused=false;r.cameraTarget=null;r.camera.reset();r.plan.confirm(action,true,now);if(r.mode==3&&action==AnchorPlan.Action.DETONATE&&r.plan.completed()==0)r.burst.sent(now,settings.systemPulseMs);
+  if(inputs.tap(mc.options.useKey,now,pulse)){
+   r.lastUseTick=inputTick;r.sentAction=action;r.sentSlot=slot;r.useGate.arm();r.interactionRefused=false;r.cameraTarget=null;r.camera.reset();r.plan.confirm(action,true,now);if(r.mode==3&&action==AnchorPlan.Action.DETONATE&&r.plan.completed()==0)r.burst.sent(now,pulse);
   }
 
  }
  public static boolean allowBlockInteraction(net.minecraft.client.network.ClientPlayerEntity player,Hand hand,BlockHitResult hit){
+  if(instance!=null&&instance.returnSlot!=null)return false;
   if(instance==null||instance.run==null)return true;
   var mc=MinecraftClient.getInstance();var r=instance.run;
   if(mc.world==null||mc.world!=instance.world||player!=mc.player||mc.currentScreen!=null)return false;
@@ -349,20 +356,44 @@ public final class SakuraClient implements ClientModInitializer {
   var clicked=h.getBlockPos();
   return PlacementGeometry.destination(mc.world,h).equals(pos);
  }
+ public static boolean deferInventory(net.minecraft.client.gui.screen.Screen screen){
+  if(instance==null)return false;
+  if(!(screen instanceof net.minecraft.client.gui.screen.ingame.InventoryScreen)){if(screen!=null&&instance.returnSlot!=null)instance.returnScreen=null;return false;}
+  if(instance.returnSlot!=null){instance.returnScreen=screen;return true;}
+  var source=instance.run!=null?instance.run:instance.pendingRepeat!=null?instance.pendingRepeat.source:null;
+  if(source==null)return false;
+  instance.beginReturn(MinecraftClient.getInstance(),source,screen,"Inventar: Totem-Slot wählen");return true;
+ }
+ private void beginReturn(MinecraftClient mc,Run source,net.minecraft.client.gui.screen.Screen screen,String why){
+  pendingRepeat=null;run=null;fastHeld=false;clearCrystal();
+  if(inputs!=null)inputs.releaseAll();restoreCamera(mc,source);lastStatus=why;
+  if(mc.player==null||mc.world!=world||mc.player!=player){if(screen!=null)mc.setScreen(screen);return;}
+  int preferred=source.options.finalSlot-1;
+  int target=HotbarChoice.choose(preferred,i->mc.player.getInventory().getStack(i).isOf(Items.TOTEM_OF_UNDYING));
+  if(target<0)target=HotbarChoice.choose(preferred,i->{var stack=mc.player.getInventory().getStack(i);return !stack.isOf(Items.RESPAWN_ANCHOR)&&!stack.isOf(Items.GLOWSTONE);});
+  if(target<0){lastStatus="Kein Totem / geeigneter Final-Slot in der Hotbar";if(screen!=null)mc.setScreen(screen);return;}
+  returnSlot=new SlotReturn(target);returnScreen=screen;returnWorld=mc.world;returnPlayer=mc.player;
+ }
+ private void advanceReturn(MinecraftClient mc,long now){
+  if(mc.world!=returnWorld||mc.player!=returnPlayer){returnSlot=null;returnScreen=null;return;}
+  boolean safe=ready(mc);
+  var decision=returnSlot.poll(safe,mc.player.getInventory().getSelectedSlot(),inputTick,now);
+  if(decision==SlotReturn.Decision.PRESS&&ensureInputs(mc)){
+   try{if(slotInput(mc,returnSlot.target(),now))returnSlot.sent(inputTick,now);}catch(RuntimeException e){finishReturn(mc,"Totem-Slot konnte nicht gewählt werden: "+e.getMessage());}
+  }else if(decision==SlotReturn.Decision.FINISH)finishReturn(mc,"Totem / Final-Slot bestätigt");
+  else if(decision==SlotReturn.Decision.TIMEOUT)finishReturn(mc,"Totem-Slotwechsel nicht bestätigt · Tastenbelegung prüfen");
+ }
+ private void finishReturn(MinecraftClient mc,String status){
+  if(inputs!=null)inputs.releaseAll();var screen=returnScreen;returnScreen=null;returnSlot=null;lastStatus=status;
+  if(screen!=null)mc.setScreen(screen);
+ }
  private void cancel(MinecraftClient mc,String why){
-  pendingRepeat=null;
-  if(inputs!=null)inputs.releaseAll();
-  if(run!=null){
-   restoreCamera(mc,run);
-   if(inputs!=null&&inputs.available()&&ready(mc)&&inputs.foreground()&&mc.player==player&&mc.world==world
-     &&mc.player.getInventory().getSelectedSlot()==run.expected&&run.original!=run.expected){
-    try{slotInput(mc,run.original,System.nanoTime());}catch(RuntimeException ignored){}
-   }
-   run=null;lastStatus=why;
-  }
+  var source=run!=null?run:pendingRepeat!=null?pendingRepeat.source:null;
+  if(source!=null)beginReturn(mc,source,null,why);
+  else if(inputs!=null)inputs.releaseAll();
  }
  public static boolean crystalActive(MinecraftClient mc){
-  return settings.crystal&&ready(mc)&&instance!=null&&instance.run==null&&instance.inputs!=null
+  return settings.crystal&&ready(mc)&&instance!=null&&instance.run==null&&instance.returnSlot==null&&instance.inputs!=null
     &&instance.inputs.available()&&mc.player.getMainHandStack().isOf(Items.END_CRYSTAL)&&instance.inputs.physicalRight();
  }
  private void clearCrystal(){crystalBase=null;crystalSlot=-1;crystalHeld=false;crystalCycle.reset();}

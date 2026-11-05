@@ -3,10 +3,10 @@ package dev.sakuralive;
 final class CameraMotion {
  record Step(int dx,int dy,boolean stalled){}
  private long last,sentAt;
- private double previousYaw,previousPitch,gainX,gainY;
+ private double previousYaw,previousPitch,gainX,gainY,velocityX,velocityY,remainderX,remainderY;
  private int pendingX,pendingY;
  private long awaitingSince;
- void reset(){last=sentAt=awaitingSince=0;pendingX=pendingY=0;gainX=gainY=0;}
+ void reset(){last=sentAt=awaitingSince=0;pendingX=pendingY=0;gainX=gainY=velocityX=velocityY=remainderX=remainderY=0;}
  private static double filteredGain(double current,double base,double measured){
   if(measured<current*.3||measured>current*3)return current; // physical mouse disturbance is not pointer gain
   return current*.85+Math.max(base*.25,Math.min(base*8,measured))*.15;
@@ -28,12 +28,18 @@ final class CameraMotion {
   if(awaitingSince!=0&&now-awaitingSince>500_000_000L)return new Step(0,0,true);
   double dt=last==0?1.0/120:Math.min(.05,Math.max(.001,(now-last)/1e9));last=now;
   double ex=wrap(targetYaw-yaw),ey=Math.max(-89.5,Math.min(89.5,targetPitch))-pitch;
-  double length=Math.hypot(ex,ey),limit=speed*dt*Math.min(1,Math.sqrt(length/12));
-  double fraction=length>limit?limit/length:1;
-  // Approach conservatively; measured view changes compensate pointer acceleration.
-  int dx=(int)Math.round(ex*fraction*.7/gainX)*(invertX?-1:1),dy=(int)Math.round(ey*fraction*.7/gainY)*(invertY?-1:1);
-  if(dx==0&&Math.abs(ex)>.25)dx=ex*(invertX?-1:1)>0?1:-1;
-  if(dy==0&&Math.abs(ey)>.25)dy=ey*(invertY?-1:1)>0?1:-1;
+  double length=Math.hypot(ex,ey);
+  if(length<.15){velocityX=velocityY=remainderX=remainderY=0;pendingX=pendingY=0;return new Step(0,0,false);}
+  double desiredX=ex*18,desiredY=ey*18,desiredLength=Math.hypot(desiredX,desiredY);
+  if(desiredLength>speed){desiredX*=speed/desiredLength;desiredY*=speed/desiredLength;}
+  double response=1-Math.exp(-dt*28);
+  velocityX+=(desiredX-velocityX)*response;velocityY+=(desiredY-velocityY)*response;
+  double moveX=velocityX*dt,moveY=velocityY*dt;
+  if(Math.signum(moveX)==Math.signum(ex)&&Math.abs(moveX)>Math.abs(ex)){moveX=ex;velocityX=0;}
+  if(Math.signum(moveY)==Math.signum(ey)&&Math.abs(moveY)>Math.abs(ey)){moveY=ey;velocityY=0;}
+  remainderX+=moveX/gainX;remainderY+=moveY/gainY;
+  int rawX=(int)Math.round(remainderX),rawY=(int)Math.round(remainderY);remainderX-=rawX;remainderY-=rawY;
+  int dx=rawX*(invertX?-1:1),dy=rawY*(invertY?-1:1);
   pendingX=Math.max(-800,Math.min(800,dx));pendingY=Math.max(-800,Math.min(800,dy));previousYaw=yaw;previousPitch=pitch;sentAt=now;
   if((pendingX!=0||pendingY!=0)&&awaitingSince==0)awaitingSince=now;
   return new Step(pendingX,pendingY,false);
