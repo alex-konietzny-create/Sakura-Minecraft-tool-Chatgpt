@@ -10,8 +10,8 @@ import org.lwjgl.glfw.GLFW;
 import java.io.File;
 /** Development-only rendering and input regression; no world or gameplay. */
 final class SakuraUiSmoke {
- private static final String[] NAMES={"anchor-grid","crystal-grid","utility-grid","themes-grid","anchor-grid-blue","anchor-details","block-outline","safe-camera","anchor-input"};
- private static final int[] PAGES={1,0,2,3,1,1,2,1,1};
+ private static final String[] NAMES={"anchor-grid","crystal-grid","utility-grid","themes-grid","anchor-grid-blue","anchor-details","block-outline","safe-camera","anchor-input","double-camera"};
+ private static final int[] PAGES={1,0,2,3,1,1,2,1,1,1};
  private static int stage=-1,wait=60;
  private static boolean tested;
  private static int animationFrame=-1;
@@ -61,6 +61,8 @@ final class SakuraUiSmoke {
 
 
  private static void verify(MinecraftClient mc){
+  try{Class.forName("net.minecraft.client.network.ClientPlayerInteractionManager");}catch(ClassNotFoundException e){throw new IllegalStateException(e);}
+  System.out.println("[Sakura UI smoke] PASS: Minecraft interaction manager with guard mixin loaded");
   verifyFirePlacement();
   var s=SakuraClient.settings;boolean motion=s.reduceMotion,anchor=s.anchor,blue=s.blueAccent;
   boolean holdRepeat=s.anchorOptions.repeatWhileHeld;
@@ -138,6 +140,16 @@ final class SakuraUiSmoke {
   inputSettings.mouseClicked(ip,false);inputSettings.mouseReleased(ip);
   check(s.anchorOptions.bundledInput!=bundled&&SakuraSettings.load().anchorOptions.bundledInput!=bundled,"bundled slot/click toggle persists");
   s.anchorOptions.bundledInput=bundled;s.save();inputSettings.close();
+  var anchorBound=InputUtil.fromTranslationKey(SakuraClient.anchorKey.getBoundKeyTranslationKey());var legitBound=InputUtil.fromTranslationKey(SakuraClient.legitKey.getBoundKeyTranslationKey());
+  boolean oldAnchor=s.anchor,oldLegit=s.legitAnchor;
+  var shared=InputUtil.fromTranslationKey("key.keyboard.c");SakuraClient.anchorKey.setBoundKey(shared);SakuraClient.legitKey.setBoundKey(shared);
+  s.anchor=false;s.legitAnchor=true;Hotkeys.clear();
+  check(Hotkeys.route(i->i==0||i==1,GLFW.GLFW_PRESS,true)&&!Hotkeys.take(0)&&Hotkeys.take(1),"screenshot config routes C only to enabled Legit");
+  Hotkeys.route(i->i==0||i==1,GLFW.GLFW_RELEASE,true);s.anchor=true;Hotkeys.clear();
+  check(Hotkeys.route(i->i==0||i==1,GLFW.GLFW_PRESS,true)&&!Hotkeys.take(0)&&!Hotkeys.take(1)&&Hotkeys.competing(SakuraClient.anchorKey),"active shared C is visibly rejected, never double-triggered");
+  Hotkeys.route(i->i==0||i==1,GLFW.GLFW_RELEASE,true);Hotkeys.clear();s.anchor=oldAnchor;s.legitAnchor=oldLegit;
+  SakuraClient.anchorKey.setBoundKey(anchorBound);SakuraClient.legitKey.setBoundKey(legitBound);KeyBinding.updateKeysByCode();s.save();
+  System.out.println("[Sakura UI smoke] PASS: actual screenshot C binding setup, inactive shortcut isolation and visible active-key conflict");
   System.out.println("[Sakura UI smoke] PASS: 1ms waits and repeat gap persist; hold-repeat toggle; Turbo zero waits; Safe camera speed editable");
   System.out.println("[Sakura UI smoke] PASS: shortcut consumed once without changing shared vanilla key; releases and GUI passthrough; outline RGB field and persistence");
   System.out.println("[Sakura UI smoke] PASS: card power toggles, direct ms/slot fields, persistence, keyboard/mouse binding, advanced navigation and theme; three UI sizes");
@@ -168,7 +180,7 @@ final class SakuraUiSmoke {
    if(!tested){verify(mc);tested=true;mc.setScreen(new SakuraScreen(1));wait=40;return;}
    if(stage<NAMES.length){
     ScreenshotRecorder.saveScreenshot(mc.runDirectory,"sakura-"+NAMES[stage]+".png",mc.getFramebuffer(),1,t->System.out.println("[Sakura UI smoke] "+t.getString()));
-    stage++;if(stage<NAMES.length){SakuraClient.settings.blueAccent=stage==4;mc.setScreen(stage==8?new SakuraDetailsScreen(0,3):stage==7?new SakuraDetailsScreen(2,3):stage==6?new SakuraOutlineScreen():stage==5?new SakuraDetailsScreen(0):new SakuraScreen(PAGES[stage]));}wait=40;return;
+    stage++;if(stage<NAMES.length){SakuraClient.settings.blueAccent=stage==4;mc.setScreen(stage==9?new SakuraDetailsScreen(3,3):stage==8?new SakuraDetailsScreen(0,3):stage==7?new SakuraDetailsScreen(2,3):stage==6?new SakuraOutlineScreen():stage==5?new SakuraDetailsScreen(0):new SakuraScreen(PAGES[stage]));}wait=40;return;
    }
    for(var name:NAMES){var file=new File(mc.runDirectory,"screenshots/sakura-"+name+".png");check(file.isFile()&&file.length()>0,"screenshot "+name);}
    if(animationFrame==-1)System.out.println("[Sakura UI smoke] Grid pages rendered successfully. No gameplay test.");

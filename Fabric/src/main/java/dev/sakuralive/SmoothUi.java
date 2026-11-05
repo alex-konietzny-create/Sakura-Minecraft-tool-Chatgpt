@@ -99,7 +99,7 @@ final class SmoothUi implements AutoCloseable {
  }
  void backdrop(DrawContext c,int w,int h,int accent,boolean still){
   double time=still?0:System.nanoTime()/1_000_000_000.0;
-  c.fillGradient(0,0,w,h,0xFF0D0C12,0xFF17121B);
+  c.fillGradient(0,0,w,h,0xFF05080E,0xFF0B1220);
   glow(c,(int)(-.15*w+Math.sin(time*.22)*w*.06),-h/3,w, h*4/3,0x4D000000|(accent&0xFFFFFF));
   glow(c,(int)(w*.36+Math.cos(time*.17)*w*.05),h/4,w,h,0x33000000|(accent&0xFFFFFF));
  }

@@ -87,12 +87,13 @@ final class AnchorPlan {
   }
   return Action.NONE;
  }
+ boolean waitingFor(Action action){return switch(action){case PLACE->stage==Stage.WAIT_ANCHOR;case CHARGE->stage==Stage.WAIT_CHARGE;case COVER->stage==Stage.WAIT_COVER;case DETONATE->stage==Stage.WAIT_REMOVED;default->false;};}
  Action retryAfterProcessing(Seen seen,long now){
   if(done()||now-due<0||now-expires>=0)return Action.NONE;
   return switch(stage){
-   case WAIT_ANCHOR->!seen.anchor&&seen.replaceable?Action.PLACE:Action.NONE;
+   case WAIT_ANCHOR->Action.NONE;
    case WAIT_CHARGE->seen.anchor&&seen.charges==0?Action.CHARGE:Action.NONE;
-   case WAIT_COVER->seen.anchor&&seen.charges>0&&!seen.cover?Action.COVER:Action.NONE;
+   case WAIT_COVER->Action.NONE;
    case WAIT_REMOVED->seen.anchor&&seen.charges>0&&(!coverRequired||seen.cover)?Action.DETONATE:Action.NONE;
    default->Action.NONE;
   };

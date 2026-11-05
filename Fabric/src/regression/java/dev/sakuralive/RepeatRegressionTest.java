@@ -22,7 +22,7 @@ public final class RepeatRegressionTest {
   lostClick.confirm(AnchorPlan.Action.PLACE,true,0);
   var air=new AnchorPlan.Seen(false,0,true,false);
   check(lostClick.retryAfterProcessing(air,999999)==AnchorPlan.Action.NONE,"retry respects configured 1ms deadline");
-  check(lostClick.retryAfterProcessing(air,1000000)==AnchorPlan.Action.PLACE,"dropped place can retry after input processing instead of 2s wait");
+  check(lostClick.retryAfterProcessing(air,1000000)==AnchorPlan.Action.NONE,"unconfirmed placement is never blindly sent twice");
   check(lostClick.retryAfterProcessing(uncharged,1000000)==AnchorPlan.Action.NONE,"late successful place prevents duplicate placement");
   lostClick.confirm(AnchorPlan.Action.PLACE,true,1000000);
   check(lostClick.poll(uncharged,2000000)==AnchorPlan.Action.CHARGE,"retry recovers the existing anchor sequence");
