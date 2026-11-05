@@ -72,7 +72,13 @@ final class SakuraUiSmoke {
   click(screen,475,203);var mouse=pointer(screen,0,0,3);screen.mouseClicked(mouse,false);check(key.matchesMouse(mouse),"mouse capture");
   key.setBoundKey(original);KeyBinding.updateKeysByCode();mc.options.write();
   screen=new SakuraScreen(1);mc.setScreen(screen);click(screen,505,171);
-  check(mc.currentScreen instanceof SakuraDetailsScreen,"advanced settings");mc.currentScreen.close();
+  check(mc.currentScreen instanceof SakuraDetailsScreen,"advanced settings");
+  var details=mc.currentScreen;
+  double ds=Math.max(.01,Math.min(1.2,Math.min((details.width-20.0)/920,(details.height-20.0)/580)));
+  var dp=new Click((details.width-ds*920)/2+550*ds,(details.height-ds*580)/2+260*ds,new MouseInput(0,0));
+  details.mouseClicked(dp,false);check(details.getFocused() instanceof TextFieldWidget,"advanced ms field focus over slider");
+  ((TextFieldWidget)details.getFocused()).setText("139");details.keyPressed(new KeyInput(GLFW.GLFW_KEY_ENTER,0,0));
+  check(s.anchorOptions.placeMs==139,"advanced ms editing");details.close();
   check(mc.currentScreen instanceof SakuraScreen,"details back navigation");
   screen=new SakuraScreen(3);mc.setScreen(screen);click(screen,440,175);check(s.blueAccent,"theme switch");
   s.reduceMotion=motion;s.blueAccent=blue;s.anchorOptions.placeMs=delay;s.anchorOptions.anchorSlot=slot;s.save();

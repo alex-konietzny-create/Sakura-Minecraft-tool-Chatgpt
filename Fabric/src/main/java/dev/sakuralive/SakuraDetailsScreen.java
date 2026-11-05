@@ -165,7 +165,7 @@ public final class SakuraDetailsScreen extends Screen {
  private Click local(Click click){return new Click(click.x()/scale-left,click.y()/scale-top-offset(),click.buttonInfo());}
  @Override public boolean mouseClicked(Click click,boolean doubled){
   if(capture!=null){assign(InputUtil.Type.MOUSE.createFromCode(click.button()));return true;}
-  return super.mouseClicked(local(click),doubled);
+  var point=local(click);for(var field:fields)if(field.widget.isMouseOver(point.x(),point.y())){setFocused(field.widget);return field.widget.mouseClicked(point,doubled);}return super.mouseClicked(point,doubled);
  }
  @Override public boolean mouseDragged(Click click,double dx,double dy){return capture!=null||super.mouseDragged(local(click),dx/scale,dy/scale);}
  @Override public boolean mouseReleased(Click click){boolean done=super.mouseReleased(local(click));flush();return done;}
