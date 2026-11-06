@@ -177,8 +177,8 @@ public final class SakuraScreen extends Screen {
  @Override public boolean mouseDragged(Click click,double dx,double dy){
   if(dragging){
    float maxX=Math.max(0,(width/scale-W)/2),maxY=Math.max(0,(height/scale-H)/2);
-   s.windowOffsetX=Math.round(Math.max(-maxX,Math.min(maxX,dragOriginalX+(click.x()-dragStartX)/scale)));
-   s.windowOffsetY=Math.round(Math.max(-maxY,Math.min(maxY,dragOriginalY+(click.y()-dragStartY)/scale)));
+   s.windowOffsetX=(int)Math.round(Math.max(-maxX,Math.min(maxX,dragOriginalX+(click.x()-dragStartX)/scale)));
+   s.windowOffsetY=(int)Math.round(Math.max(-maxY,Math.min(maxY,dragOriginalY+(click.y()-dragStartY)/scale)));
    left=(width/scale-W)/2+s.windowOffsetX;top=(height/scale-H)/2+s.windowOffsetY;
    dirty=true;changedAt=System.nanoTime();return true;
   }
