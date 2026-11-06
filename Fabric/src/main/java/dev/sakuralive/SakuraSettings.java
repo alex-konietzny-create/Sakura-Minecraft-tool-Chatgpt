@@ -7,7 +7,8 @@ import java.nio.file.*;
 
 /** Schema 3 migrates old tick delays to milliseconds once, preserving existing controls. */
 public final class SakuraSettings {
- public int schemaVersion=3;
+ public int schemaVersion=4;
+ public int uiScalePercent=85,overlayDim=75,windowOffsetX=0,windowOffsetY=0;
  public boolean smoothFont=true,reduceMotion=false,anchor=false,legitAnchor=false,safeAnchor=false,doubleAnchor=false,crystal=false,fastPlace=false,excludeAnchors=true;
  public AnchorOptions anchorOptions=new AnchorOptions();
  public AnchorOptions legitOptions=AnchorOptions.legit();
@@ -45,6 +46,9 @@ public final class SakuraSettings {
      s.crystalPlaceMs=old(raw,"crystalPlaceDelay",3)*50;s.crystalBreakMs=old(raw,"crystalBreakDelay",3)*50;
      s.placeDelayMs=old(raw,"placeDelay",0)*50;s.schemaVersion=3;
     }
+    if(!raw.has("schemaVersion")||raw.get("schemaVersion").getAsInt()<4){
+     s.uiScalePercent=85;s.overlayDim=75;s.windowOffsetX=0;s.windowOffsetY=0;s.schemaVersion=4;
+    }
     s.clamp();return s;
    }
   }catch(Exception e){System.err.println("[Sakura] Settings load: "+e);}
@@ -52,6 +56,8 @@ public final class SakuraSettings {
  }
  private static int old(JsonObject raw,String key,int fallback){return raw.has(key)?raw.get(key).getAsInt():fallback;}
  public void clamp(){
+  uiScalePercent=cap(uiScalePercent,60,130);overlayDim=cap(overlayDim,0,180);
+  windowOffsetX=cap(windowOffsetX,-2500,2500);windowOffsetY=cap(windowOffsetY,-2500,2500);
   systemPulseMs=cap(systemPulseMs,10,100);
   if(anchorOptions==null)anchorOptions=new AnchorOptions();if(legitOptions==null)legitOptions=AnchorOptions.legit();
   if(safeOptions==null)safeOptions=new AnchorOptions();if(doubleOptions==null)doubleOptions=new AnchorOptions();
