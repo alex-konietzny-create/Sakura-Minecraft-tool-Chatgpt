@@ -7,7 +7,7 @@ import java.nio.file.*;
 
 /** Schema 3 migrates old tick delays to milliseconds once, preserving existing controls. */
 public final class SakuraSettings {
- public int schemaVersion=4;
+ public int schemaVersion=5;
  public int uiScalePercent=85,overlayDim=75,windowOffsetX=0,windowOffsetY=0;
  public boolean smoothFont=true,reduceMotion=false,anchor=false,legitAnchor=false,safeAnchor=false,doubleAnchor=false,crystal=false,fastPlace=false,excludeAnchors=true;
  public AnchorOptions anchorOptions=new AnchorOptions();
@@ -17,14 +17,14 @@ public final class SakuraSettings {
  public int systemPulseMs=25;
  public int crystalPlaceMs=150,crystalBreakMs=150,crystalTimeoutMs=2000,placeDelayMs=0;
  public static final class AnchorOptions {
-  public int anchorSlot=1,glowSlot=2,finalSlot=9;
+  public int anchorSlot=1,glowSlot=2,finalSlot=9,firstFinalSlot=4;
   public int placeMs=150,chargeMs=150,switchMs=35,coverMs=120,repeatMs=200,timeoutMs=2000;
   public boolean holdToRun=false;
   static AnchorOptions legit(){
    var o=new AnchorOptions();o.placeMs=280;o.chargeMs=280;o.switchMs=80;o.holdToRun=true;return o;
   }
   void clamp(){
-   anchorSlot=cap(anchorSlot,1,9);glowSlot=cap(glowSlot,1,9);finalSlot=cap(finalSlot,1,9);
+   anchorSlot=cap(anchorSlot,1,9);glowSlot=cap(glowSlot,1,9);finalSlot=cap(finalSlot,1,9);firstFinalSlot=cap(firstFinalSlot,1,9);
    placeMs=cap(placeMs,10,2000);chargeMs=cap(chargeMs,10,2000);switchMs=cap(switchMs,0,500);
    coverMs=cap(coverMs,10,2000);repeatMs=cap(repeatMs,10,2000);
    timeoutMs=cap(timeoutMs,250,10000);
@@ -48,6 +48,9 @@ public final class SakuraSettings {
     }
     if(!raw.has("schemaVersion")||raw.get("schemaVersion").getAsInt()<4){
      s.uiScalePercent=85;s.overlayDim=75;s.windowOffsetX=0;s.windowOffsetY=0;s.schemaVersion=4;
+    }
+    if(!raw.has("schemaVersion")||raw.get("schemaVersion").getAsInt()<5){
+     s.doubleOptions.firstFinalSlot=4;s.schemaVersion=5;
     }
     s.clamp();return s;
    }
