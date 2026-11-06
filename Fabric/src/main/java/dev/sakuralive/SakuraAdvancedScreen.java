@@ -50,9 +50,9 @@ public final class SakuraAdvancedScreen extends Screen {
     ()->client.setScreen(new KeybindsScreen(this,client.options)));
   if(tab==6){
    slider(230,220,378,"Menügröße (%)",()->s.uiScalePercent,n->s.uiScalePercent=n,60,130);
-   toggle(230,290,378,"Weiche Animationen",()->!s.reduceMotion,()->s.reduceMotion=!s.reduceMotion);
-   toggle(230,350,378,"Klare Schrift",()->s.smoothFont,()->s.smoothFont=!s.smoothFont);
-   slider(230,411,378,"System-Tastendauer",()->s.systemPulseMs,n->s.systemPulseMs=n,10,100);
+   toggle(230,282,378,"Weiche Animationen",()->!s.reduceMotion,()->s.reduceMotion=!s.reduceMotion);
+   toggle(230,330,378,"Klare Schrift",()->s.smoothFont,()->s.smoothFont=!s.smoothFont);
+   slider(230,386,378,"System-Tastendauer",()->s.systemPulseMs,n->s.systemPulseMs=n,10,100);
    button(230,460,378,38,Skin.KEY,()->"Menü · "+keyName(SakuraClient.menuKey),()->"Hotkey direkt ändern",()->false,0,()->capture=SakuraClient.menuKey);
    return;
   }
