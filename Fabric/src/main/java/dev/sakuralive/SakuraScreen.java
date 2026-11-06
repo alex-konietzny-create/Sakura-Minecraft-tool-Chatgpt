@@ -26,10 +26,7 @@ public final class SakuraScreen extends Screen {
  private int tab,section;
  private float scale,left,top,dt,rail;
  private long opened=System.nanoTime(),pageOpened=opened,lastFrame=opened,changedAt,noticeUntil;
- private boolean dirty, dragging;
- private int layoutScalePercent;
- private double dragStartX,dragStartY;
- private int dragOriginalX,dragOriginalY;
+ private boolean dirty;
  private String notice="";
  private KeyBinding capture;
  private enum Skin { NAV,TAB,SWITCH,HERO,KEY,SLOT,BUTTON }
@@ -40,11 +37,8 @@ public final class SakuraScreen extends Screen {
  SakuraScreen(int initial,int initialSection){super(Text.literal("Sakura Live"));tab=initial;section=initialSection;rail=104+tab*43;}
  @Override protected void init(){
   controls.clear();sliders.clear();fields.clear();capture=null;
-  layoutScalePercent=s.uiScalePercent;
-  scale=Math.max(0.01f,Math.min(s.uiScalePercent/100f,Math.min((width-20f)/W,(height-20f)/H)));
-  float maxX=Math.max(0,(width/scale-W)/2), maxY=Math.max(0,(height/scale-H)/2);
-  left=(width/scale-W)/2+Math.max(-maxX,Math.min(maxX,s.windowOffsetX));
-  top=(height/scale-H)/2+Math.max(-maxY,Math.min(maxY,s.windowOffsetY));
+  scale=Math.max(0.01f,Math.min(1.2f,Math.min((width-20f)/W,(height-20f)/H)));
+  left=(width/scale-W)/2;top=(height/scale-H)/2;
   for(int i=0;i<7;i++){
    final int n=i;
    button(24,104+i*43,148,36,Skin.NAV,()->NAMES[n],()->SHORT[n],()->tab==n,i,()->select(n,0));
@@ -54,11 +48,10 @@ public final class SakuraScreen extends Screen {
   button(28,510,140,28,Skin.BUTTON,()->"Alle Hotkeys",()->"Minecraft-Tastenbelegung",()->false,0,
     ()->client.setScreen(new KeybindsScreen(this,client.options)));
   if(tab==6){
-   slider(230,250,378,"Menügröße (%)",()->s.uiScalePercent,n->s.uiScalePercent=n,60,130);
-   slider(230,321,378,"Hintergrund abdunkeln",()->s.overlayDim,n->s.overlayDim=n,0,180);
-   toggle(230,395,378,"Weiche Animationen",()->!s.reduceMotion,()->s.reduceMotion=!s.reduceMotion);
-   button(230,465,180,32,Skin.BUTTON,()->"Position zurücksetzen",()->"Menü mittig platzieren",()->false,0,()->{s.windowOffsetX=0;s.windowOffsetY=0;changed();clearAndInit();});
-   button(421,465,187,32,Skin.KEY,()->"Menü · "+keyName(SakuraClient.menuKey),()->"Hotkey direkt ändern",()->false,0,()->capture=SakuraClient.menuKey);
+   toggle(230,250,378,"Weiche Animationen",()->!s.reduceMotion,()->s.reduceMotion=!s.reduceMotion);
+   toggle(230,320,378,"Klare Schrift",()->s.smoothFont,()->s.smoothFont=!s.smoothFont);
+   slider(230,381,378,"System-Tastendauer",()->s.systemPulseMs,n->s.systemPulseMs=n,10,100);
+   button(230,460,378,38,Skin.KEY,()->"Menü · "+keyName(SakuraClient.menuKey),()->"Hotkey direkt ändern",()->false,0,()->capture=SakuraClient.menuKey);
    return;
   }
   button(210,96,686,56,Skin.HERO,()->NAMES[tab],this::hint,()->SakuraClient.enabled(tab),0,()->{SakuraClient.toggle(tab);changed();});
@@ -87,8 +80,8 @@ public final class SakuraScreen extends Screen {
    if(tab==3){
     slots(274,()->o.anchorSlot,n->o.anchorSlot=n,"Anchor-Slot");
     slots(329,()->o.glowSlot,n->o.glowSlot=n,"Glowstone-Slot");
-    slots(384,()->o.firstFinalSlot,n->o.firstFinalSlot=n,"Erster Auslöse-Slot");
-    slots(439,()->o.finalSlot,n->o.finalSlot=n,"Zweiter Auslöse-Slot");
+    slots(384,()->o.firstFinalSlot,n->o.firstFinalSlot=n,"1. Auslöse-Slot");
+    slots(439,()->o.finalSlot,n->o.finalSlot=n,"2. Auslöse-Slot");
    }else{
     slots(276,()->o.anchorSlot,n->o.anchorSlot=n,"Anchor-Slot");
     slots(348,()->o.glowSlot,n->o.glowSlot=n,"Glowstone-Slot");
@@ -141,7 +134,7 @@ public final class SakuraScreen extends Screen {
   return switch(tab){
    case 1->"Langsamere Abläufe · Haltemodus separat einstellbar";
    case 2->"Deckung selbst anvisieren · Systemklicks · ohne Totem-Prüfung";
-   case 3->"Zwei bestätigte Anchor · erster und zweiter Auslöse-Slot getrennt";
+   case 3->"Zwei bestätigte Anchor · getrennte Auslöse-Slots";
    case 4->"Kristalle in der Haupthand + rechte Maustaste halten";
    case 5->"Block in der Hand + Benutzen-Taste halten";
    default->"Vorhandenen Anchor erkennen oder neuen platzieren";
@@ -173,30 +166,10 @@ public final class SakuraScreen extends Screen {
  private Click local(Click click){return new Click(click.x()/scale-left,click.y()/scale-top-offset(),click.buttonInfo());}
  @Override public boolean mouseClicked(Click click,boolean doubled){
   if(capture!=null){assign(InputUtil.Type.MOUSE.createFromCode(click.button()));return true;}
-  Click p=local(click);
-  if(click.button()==GLFW.GLFW_MOUSE_BUTTON_LEFT && p.x()>185 && p.x()<852 && p.y()>0 && p.y()<82){
-   dragging=true;dragStartX=click.x();dragStartY=click.y();
-   dragOriginalX=s.windowOffsetX;dragOriginalY=s.windowOffsetY;
-   return true;
-  }
-  return super.mouseClicked(p,doubled);
+  return super.mouseClicked(local(click),doubled);
  }
- @Override public boolean mouseDragged(Click click,double dx,double dy){
-  if(dragging){
-   float maxX=Math.max(0,(width/scale-W)/2),maxY=Math.max(0,(height/scale-H)/2);
-   s.windowOffsetX=(int)Math.round(Math.max(-maxX,Math.min(maxX,dragOriginalX+(click.x()-dragStartX)/scale)));
-   s.windowOffsetY=(int)Math.round(Math.max(-maxY,Math.min(maxY,dragOriginalY+(click.y()-dragStartY)/scale)));
-   left=(width/scale-W)/2+s.windowOffsetX;top=(height/scale-H)/2+s.windowOffsetY;
-   dirty=true;changedAt=System.nanoTime();return true;
-  }
-  return capture!=null||super.mouseDragged(local(click),dx/scale,dy/scale);
- }
- @Override public boolean mouseReleased(Click click){
-  if(dragging){dragging=false;flush();return true;}
-  boolean done=super.mouseReleased(local(click));flush();
-  if(tab==6&&layoutScalePercent!=s.uiScalePercent)clearAndInit();
-  return done;
- }
+ @Override public boolean mouseDragged(Click click,double dx,double dy){return capture!=null||super.mouseDragged(local(click),dx/scale,dy/scale);}
+ @Override public boolean mouseReleased(Click click){boolean done=super.mouseReleased(local(click));flush();return done;}
  @Override public void removed(){capture=null;flush();super.removed();}
  @Override public void close(){capture=null;flush();super.close();}
  @Override public boolean shouldPause(){return false;}
@@ -250,7 +223,7 @@ public final class SakuraScreen extends Screen {
   int active=0;for(int i=0;i<6;i++)if(SakuraClient.enabled(i))active++;
   label(c,active+" / 6 aktiv",29,429,MUTED);
   label(c,"MENÜ-HOTKEY",29,452,0xFF7C7485);
-  label(c,"0.5.0  /  FABRIC 1.21.11",29,551,0xFF7C7485);
+  label(c,"0.5.1  /  FABRIC 1.21.11",29,551,0xFF7C7485);
   label(c,"SAKURA / "+(tab<4?"ANCHOR SUITE":tab==6?"PERSONALISIEREN":"UTILITY"),212,22,MUTED);
   title(c,NAMES[tab],210,39,2.25f);
   label(c,SHORT[tab]+" · eigene Einstellungen",212,73,MUTED);
@@ -258,7 +231,7 @@ public final class SakuraScreen extends Screen {
    round(c,210,96,686,56,11,0xFF241B28);
    label(c,"DEIN SAKURA",226,107,PINK);
    label(c,"Echte Systemeingaben · nur im Minecraft-Fenster",226,130,MUTED);
-   label(c,"LOOK & FEEL · am oberen Rand ziehen",212,178,MUTED);
+   label(c,"LOOK & FEEL",212,178,MUTED);
   }
   if(tab!=6){card(c,210,214,418,304);card(c,642,214,254,304);}
   else{
@@ -270,10 +243,8 @@ public final class SakuraScreen extends Screen {
    label(c,section==0?"ZEITEN IN MILLISEKUNDEN":tab<4&&section==1?"DEINE HOTBAR":"HOTKEY & VERHALTEN",230,232,MUTED);
    if(tab<4&&section==1){
     if(tab==3){
-     label(c,"Anchor",230,257,INK);
-     label(c,"Glowstone",230,312,INK);
-     label(c,"1. Auslösen · kein Totem nötig",230,367,INK);
-     label(c,"2. Auslösen · Totem-Slot",230,422,INK);
+     label(c,"Anchor",230,257,INK);label(c,"Glowstone",230,312,INK);
+     label(c,"1. Auslösen · ohne Totem",230,367,INK);label(c,"2. Auslösen · Totem",230,422,INK);
     }else{
      label(c,"Anchor",230,257,INK);label(c,"Glowstone",230,329,INK);label(c,"Finaler Slot · kein Totem erforderlich",230,401,INK);
     }
