@@ -166,7 +166,9 @@ public final class SakuraClient implements ClientModInitializer {
      ||!mc.world.getOtherEntities(null,new Box(r.cover)).isEmpty())){
    cancel(mc,"Deckungsposition nicht frei");return;
   }
-  int slot=switch(action){case PLACE->o.anchorSlot-1;case CHARGE,COVER->o.glowSlot-1;default->o.finalSlot-1;};
+  int slot=switch(action){case PLACE->o.anchorSlot-1;case CHARGE,COVER->o.glowSlot-1;
+   case DETONATE->r.mode==3&&r.plan.completed()==0?o.firstFinalSlot-1:o.finalSlot-1;
+   default->o.finalSlot-1;};
   var stack=mc.player.getInventory().getStack(slot);
   if(action==AnchorPlan.Action.PLACE&&!stack.isOf(Items.RESPAWN_ANCHOR)
     ||(action==AnchorPlan.Action.CHARGE||action==AnchorPlan.Action.COVER)&&!stack.isOf(Items.GLOWSTONE)){
