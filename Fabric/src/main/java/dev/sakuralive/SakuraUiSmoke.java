@@ -18,14 +18,14 @@ final class SakuraUiSmoke {
  private static WindowsSystemInput nativeSmoke;
  private static int nativeWait;
  private static void check(boolean value,String why){if(!value)throw new IllegalStateException("UI assertion: "+why);}
- private static Click pointer(SakuraScreen screen,double x,double y,int button){
+ private static Click pointer(SakuraAdvancedScreen screen,double x,double y,int button){
   double scale=Math.max(.01,Math.min(1.2,Math.min((screen.width-20.0)/920,(screen.height-20.0)/580)));
   return new Click((screen.width-scale*920)/2+x*scale,(screen.height-scale*580)/2+y*scale,new MouseInput(button,0));
  }
- private static void click(SakuraScreen screen,double x,double y){
+ private static void click(SakuraAdvancedScreen screen,double x,double y){
   var p=pointer(screen,x,y,0);check(screen.mouseClicked(p,false),"click "+x+","+y);screen.mouseReleased(p);
  }
- private static SakuraScreen page(MinecraftClient mc,int tab,int section){var screen=new SakuraScreen(tab,section);mc.setScreen(screen);return screen;}
+ private static SakuraAdvancedScreen page(MinecraftClient mc,int tab,int section){var screen=new SakuraAdvancedScreen(tab,section);mc.setScreen(screen);return screen;}
 
  private static void verifyFirePlacement(){
   final var target=new net.minecraft.util.math.BlockPos(0,1,0);
@@ -80,8 +80,8 @@ final class SakuraUiSmoke {
   s.anchorOptions.placeMs=oldMs;s.anchorOptions.anchorSlot=oldSlot;s.reduceMotion=motion;s.save();
   System.out.println("[Sakura UI smoke] PASS: scaled input, numeric ms fields, slider drag, 1 ms steps, persistence, hotbar and keyboard/mouse binding");
  }
- private static SakuraScreen screenshotPage(int index){
-  return index<7?new SakuraScreen(index):new SakuraScreen(0,index==7?1:2);
+ private static SakuraAdvancedScreen screenshotPage(int index){
+  return index<7?new SakuraAdvancedScreen(index):new SakuraAdvancedScreen(0,index==7?1:2);
  }
  private static WindowsSystemInput newNativeSmoke(MinecraftClient mc){try{return new WindowsSystemInput(mc);}catch(Exception e){throw new IllegalStateException(e);}}
  static void install(){
@@ -103,8 +103,24 @@ final class SakuraUiSmoke {
     mc.setScreen(screenshotPage(0));stage=0;wait=40;return;
    }
    if(!tested){
-    verifyInputs(mc);tested=true;mc.setScreen(screenshotPage(0));wait=40;return;
+    verifyInputs(mc);
+    var dashboard=new SakuraScreen();mc.setScreen(dashboard);
+    for(int[] size:new int[][]{{320,200},{640,400},{1280,800}}){
+     dashboard.resize(size[0],size[1]);
+     double z=Math.max(.01,Math.min(Math.min((size[0]-20.0)/600,(size[1]-20.0)/350),SakuraClient.settings.uiScalePercent/100.0));
+     double l=Math.max(0,Math.min(Math.round((size[0]/z-600)/2+SakuraClient.settings.windowOffsetX),(int)(size[0]/z)-600));
+     double t=Math.max(0,Math.min(Math.round((size[1]/z-350)/2+SakuraClient.settings.windowOffsetY),(int)(size[1]/z)-350));
+     boolean before=SakuraClient.settings.anchor;
+     var p=new Click((l+220)*z,(t+85)*z,new MouseInput(0,0));
+     check(dashboard.mouseClicked(p,false),"198 dashboard toggle");dashboard.mouseReleased(p);
+     check(SakuraClient.settings.anchor!=before,"198 transformed toggle");
+     dashboard.mouseClicked(p,false);dashboard.mouseReleased(p);
+    }
+    System.out.println("[Sakura UI smoke] PASS: 198 dashboard scaled toggle");
+    tested=true;mc.setScreen(screenshotPage(0));wait=40;return;
    }
+   if(stage==NAMES.length){mc.setScreen(new SakuraScreen());stage++;wait=40;return;}
+   if(stage==NAMES.length+1){ScreenshotRecorder.saveScreenshot(mc.runDirectory,"sakura-198.png",mc.getFramebuffer(),1,text->System.out.println(text.getString()));stage++;wait=20;return;}
    if(stage<NAMES.length){
     ScreenshotRecorder.saveScreenshot(mc.runDirectory,"sakura-"+NAMES[stage]+".png",mc.getFramebuffer(),1,
       text->System.out.println("[Sakura UI smoke] "+text.getString()));
