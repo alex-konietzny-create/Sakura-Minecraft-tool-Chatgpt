@@ -84,9 +84,16 @@ public final class SakuraScreen extends Screen {
     toggle(230,350,378,"Anchor / Glowstone ausnehmen",()->s.excludeAnchors,()->s.excludeAnchors=!s.excludeAnchors);
    }
   }else if(tab<4&&section==1){
-   slots(276,()->o.anchorSlot,n->o.anchorSlot=n,"Anchor-Slot");
-   slots(348,()->o.glowSlot,n->o.glowSlot=n,"Glowstone-Slot");
-   slots(420,()->o.finalSlot,n->o.finalSlot=n,"Finaler Slot");
+   if(tab==3){
+    slots(274,()->o.anchorSlot,n->o.anchorSlot=n,"Anchor-Slot");
+    slots(329,()->o.glowSlot,n->o.glowSlot=n,"Glowstone-Slot");
+    slots(384,()->o.firstFinalSlot,n->o.firstFinalSlot=n,"Erster Auslöse-Slot");
+    slots(439,()->o.finalSlot,n->o.finalSlot=n,"Zweiter Auslöse-Slot");
+   }else{
+    slots(276,()->o.anchorSlot,n->o.anchorSlot=n,"Anchor-Slot");
+    slots(348,()->o.glowSlot,n->o.glowSlot=n,"Glowstone-Slot");
+    slots(420,()->o.finalSlot,n->o.finalSlot=n,"Finaler Slot");
+   }
   }else{
    button(230,255,378,36,Skin.KEY,()->keyName(SakuraClient.keyFor(tab)),()->"Klicken und Taste oder Maustaste drücken",()->false,0,()->capture=SakuraClient.keyFor(tab));
    if(tab<4){
@@ -134,7 +141,7 @@ public final class SakuraScreen extends Screen {
   return switch(tab){
    case 1->"Langsamere Abläufe · Haltemodus separat einstellbar";
    case 2->"Deckung selbst anvisieren · Systemklicks · ohne Totem-Prüfung";
-   case 3->"Zwei Anchor auf exakt derselben Blockposition";
+   case 3->"Zwei bestätigte Anchor · erster und zweiter Auslöse-Slot getrennt";
    case 4->"Kristalle in der Haupthand + rechte Maustaste halten";
    case 5->"Block in der Hand + Benutzen-Taste halten";
    default->"Vorhandenen Anchor erkennen oder neuen platzieren";
@@ -262,7 +269,14 @@ public final class SakuraScreen extends Screen {
   if(tab!=6){
    label(c,section==0?"ZEITEN IN MILLISEKUNDEN":tab<4&&section==1?"DEINE HOTBAR":"HOTKEY & VERHALTEN",230,232,MUTED);
    if(tab<4&&section==1){
-    label(c,"Anchor",230,257,INK);label(c,"Glowstone",230,329,INK);label(c,"Finaler Slot · kein Totem erforderlich",230,401,INK);
+    if(tab==3){
+     label(c,"Anchor",230,257,INK);
+     label(c,"Glowstone",230,312,INK);
+     label(c,"1. Auslösen · kein Totem nötig",230,367,INK);
+     label(c,"2. Auslösen · Totem-Slot",230,422,INK);
+    }else{
+     label(c,"Anchor",230,257,INK);label(c,"Glowstone",230,329,INK);label(c,"Finaler Slot · kein Totem erforderlich",230,401,INK);
+    }
    }else if(section>0){
     String note=conflict(SakuraClient.keyFor(tab));
     small(c,note,230,305,note.startsWith("Konflikt")?0xFFFFB490:MUTED,378);
