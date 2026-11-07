@@ -71,7 +71,7 @@ public final class SakuraClient implements ClientModInitializer {
     &&mc.isWindowFocused()&&!mc.isPaused()&&mc.player.isAlive()&&!mc.player.isSpectator();
  }
  private void tick(MinecraftClient mc){
-  while(menuKey.wasPressed())mc.setScreen(new SakuraScreen());
+  while(menuKey.wasPressed())mc.setScreen(new SakuraAdvancedScreen());
   if(!ready(mc)){cancel(mc,"Menü / Spiel pausiert");drain();return;}
   while(crystalKey.wasPressed()){toggle(4);settings.save();}
   while(fastKey.wasPressed()){toggle(5);settings.save();}
