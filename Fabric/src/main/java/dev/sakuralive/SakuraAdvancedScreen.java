@@ -202,7 +202,7 @@ public final class SakuraAdvancedScreen extends Screen {
   }
  }
  private void card(DrawContext c,int x,int y,int w,int h){
-  round(c,x,y,w,h,12,BORDER);round(c,x+1,y+1,w-2,h-2,11,0xFF19171E);
+  round(c,x-1,y-1,w+2,h+2,18,0xFF392332);round(c,x,y,w,h,17,BORDER);round(c,x+1,y+1,w-2,h-2,16,0xFF19171E);
  }
  private void switchAt(DrawContext c,int x,int y,float on){
   round(c,x,y,34,18,9,mix(0xFF44404B,0xFFDD5B92,on));round(c,x+3+Math.round(on*16),y+3,12,12,6,INK);
@@ -212,13 +212,14 @@ public final class SakuraAdvancedScreen extends Screen {
   round(c,40,39,4,4,2,0xFFFFD8E8);
  }
  @Override public void render(DrawContext c,int mouseX,int mouseY,float delta){
-  long now=System.nanoTime();dt=Math.min(.1f,(now-lastFrame)/1_000_000_000f);lastFrame=now;
+  long now=System.nanoTime();float pulse=(float)(.5+.5*Math.sin(now/500_000_000.0));dt=Math.min(.1f,(now-lastFrame)/1_000_000_000f);lastFrame=now;
   float off=offset();int mx=(int)(mouseX/scale-left),my=(int)(mouseY/scale-top-off);
   c.fill(0,0,width,height,(s.overlayDim<<24));
   c.getMatrices().pushMatrix();c.getMatrices().scale(scale,scale);c.getMatrices().translate(left,top+off);
-  for(int i=6;i>=1;i--)round(c,-i,2-i,W+2*i,H+2*i,20+i,0x06000000);
-  round(c,0,0,W,H,20,0xFF42323D);round(c,1,1,W-2,H-2,19,0xFF100F14);
-  round(c,12,12,174,556,13,0xFF16131B);
+  for(int i=8;i>=1;i--)round(c,-i,2-i,W+2*i,H+2*i,28+i,((int)(8+8*pulse)<<24)|0x00FF3D98);
+  round(c,-2,-2,W+4,H+4,27,0xCCFF3D98);
+  round(c,0,0,W,H,24,0xFF55303F);round(c,1,1,W-2,H-2,23,0xFF100F14);
+  round(c,12,12,174,556,18,0xFF16131B);
   flower(c);title(c,"SAKURA",63,29,1.3f);label(c,"LIVE  /  PINK",64,48,MUTED);
   label(c,"MODULE",29,82,0xFF7C7485);
   rail=ease(rail,104+tab*43);round(c,18,Math.round(rail+9),2,18,1,PINK);
@@ -297,11 +298,11 @@ public final class SakuraAdvancedScreen extends Screen {
    w.setMessage(Text.literal(text+". "+detail));if(over)hover=detail;
    if(p.skin==Skin.NAV){
     if(on>.01f)round(c,x-1,y-1,bw+2,bh+2,8,0xFF7B2850);
-    round(c,x,y,bw,bh,7,mix(mix(0xFF16131B,0xFF211C27,h),0xFF30202D,on));
+    round(c,x-1,y-1,bw+2,bh+2,12,mix(0xFF382333,0xFF8E2D59,on));round(c,x,y,bw,bh,11,mix(mix(0xFF16131B,0xFF211C27,h),0xFF30202D,on));
     small(c,text,x+13,y+7,mix(MUTED,INK,on),bw-32);
     if(p.index<6){round(c,x+bw-17,y+16,4,4,2,SakuraClient.enabled(p.index)?PINK:0xFF65596B);}
    }else if(p.skin==Skin.TAB){
-    round(c,x,y,bw,bh,7,mix(0xFF151219,0xFF30202D,on));
+    round(c,x-1,y-1,bw+2,bh+2,11,mix(0xFF32212F,0xFFB83270,on));round(c,x,y,bw,bh,10,mix(0xFF151219,0xFF30202D,on));
     label(c,text,x+(bw-tw(text))/2,y+7,on>.5?PINK:MUTED);
    }else if(p.skin==Skin.HERO){
     round(c,x-1,y-1,bw+2,bh+2,12,mix(0xFF342030,0xFFB83270,on));
@@ -310,7 +311,7 @@ public final class SakuraAdvancedScreen extends Screen {
     label(c,text,x+16,y+11,INK);small(c,detail,x+16,y+33,MUTED,bw-97);
     switchAt(c,x+bw-52,y+18,on);
    }else if(p.skin==Skin.SWITCH){
-    round(c,x,y,bw,bh,8,mix(0xFF24202A,0xFF332837,h));
+    round(c,x-1,y-1,bw+2,bh+2,12,mix(0xFF46303D,0xFFB83270,h));round(c,x,y,bw,bh,11,mix(0xFF24202A,0xFF332837,h));
     small(c,text,x+12,y+13,INK,bw-72);switchAt(c,x+bw-47,y+12,on);
    }else if(p.skin==Skin.SLOT){
     round(c,x,y,bw,bh,7,mix(mix(0xFF27212E,0xFF443247,h),0xFF9F3F6B,on));
@@ -335,7 +336,7 @@ public final class SakuraAdvancedScreen extends Screen {
    var w=f.widget;
    if(!w.isFocused()&&!w.getText().equals(Integer.toString(f.get.getAsInt())))w.setText(Integer.toString(f.get.getAsInt()));
    boolean valid=!w.getText().isEmpty()&&Integer.parseInt(w.getText())>=f.min&&Integer.parseInt(w.getText())<=f.max;
-   round(c,w.getX()-7,w.getY()-3,85,26,6,valid?0xFF342535:0xFF58303E);
+   round(c,w.getX()-7,w.getY()-3,85,26,10,valid?0xFF342535:0xFF58303E);
    label(c,"ms",w.getX()+59,w.getY()+4,MUTED);w.render(c,mx,my,delta);
    if(w.isFocused())hover="Erlaubt: "+f.min+" bis "+f.max+" ms. Ungültige Werte werden nicht übernommen.";
   }
