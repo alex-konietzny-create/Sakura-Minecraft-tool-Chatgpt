@@ -13,7 +13,9 @@ import java.util.function.Supplier;
 public final class SakuraScreen extends Screen {
  private static final int BACK = 0xFF0D0A0C;
  private static final int CARD = 0xFF1C1419;
- private static final int CARD_HOVER = 0xFF2C1923;
+ private static final int CARD_HOVER = 0xFF351323;
+ private static final int NEON = 0xFFFF2F93;
+ private static final int NEON_EDGE = 0xFFFF5EAD;
  private static final int PINK = 0xFFFF4D9B;
  private static final int PINK_LIGHT = 0xFFFFA4CD;
  private static final int TEXT = 0xFFFFEAF2;
@@ -82,6 +84,9 @@ public final class SakuraScreen extends Screen {
   mouseX=(int)(mouseX/scale);mouseY=(int)(mouseY/scale);
   context.getMatrices().pushMatrix();context.getMatrices().scale(scale,scale);
   // Draw over the functional vanilla ButtonWidget hitboxes for custom fully rounded pills.
+  // Soft neon edge, matching Sakura's original black-and-hot-pink look.
+  rounded(context,left-3,top-3,606,356,23,0x443B0925);
+  rounded(context,left-1,top-1,602,352,21,NEON);
   outline(context,left,top,600,350,20,0xFF6A2E48,BACK);
   rounded(context,left+14,top+13,5,28,3,PINK);
   label(context,"SAKURA",left+29,top+21,PINK);
@@ -111,8 +116,9 @@ public final class SakuraScreen extends Screen {
   for(Pill p:pills){
    boolean hover=mouseX>=p.x&&mouseX<p.x+p.w&&mouseY>=p.y&&mouseY<p.y+p.h;
    String value=p.label.get();
-   int color=value.equals("ON")?(hover?0xFFFF78B0:PINK):(hover?CARD_HOVER:OFF);
+   int color=value.equals("ON")?(hover?0xFFFF78B0:NEON):(hover?CARD_HOVER:OFF);
    if(value.equals("X"))color=hover?0xFFFF78B0:PINK;
+   rounded(context,p.x-1,p.y-1,p.w+2,p.h+2,Math.min(11,p.h/2+1),value.equals("ON")?NEON_EDGE:(hover?0xFF8C315C:0xFF39212E));
    rounded(context,p.x,p.y,p.w,p.h,Math.min(10,p.h/2),color);
    int ink=value.equals("ON")||value.equals("X")?BACK:TEXT;
    int txtW=textRenderer.getWidth(value);
