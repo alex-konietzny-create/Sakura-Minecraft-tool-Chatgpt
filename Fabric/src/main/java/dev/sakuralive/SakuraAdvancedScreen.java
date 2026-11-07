@@ -16,7 +16,7 @@ import java.util.function.*;
 /** Original settings workspace. One inverse transform serves all pointer events. */
 public final class SakuraAdvancedScreen extends Screen {
  static final int W=920,H=580;
- private static final int PINK=0xFFFF78AB,INK=0xFFF1EDF3,MUTED=0xFFAAA3B0,BORDER=0xFF302B35;
+ private static final int PINK=0xFFFF3D98,INK=0xFFF1EDF3,MUTED=0xFFAAA3B0,BORDER=0xFF302B35,NEON=0xFFFF2F93;
  private static final String[] NAMES={"Anchor","Legit Anchor","Safe Anchor","Double Anchor","Crystal","Fast Place","Design"};
  private static final String[] SHORT={"Standard-Sequenz","Bewusst halten","Glowstone-Deckung","Zwei Durchläufe","Halten & Ausführen","Schneller platzieren","Darstellung"};
  private final SakuraSettings s=SakuraClient.settings;
@@ -43,7 +43,7 @@ public final class SakuraAdvancedScreen extends Screen {
    final int n=i;
    button(24,104+i*43,148,36,Skin.NAV,()->NAMES[n],()->SHORT[n],()->tab==n,i,()->select(n,0));
   }
-  button(740,21,120,24,Skin.BUTTON,()->"198 Menü",()->"Zurück",()->false,0,()->client.setScreen(new SakuraScreen()));
+  button(740,21,120,24,Skin.BUTTON,()->"Kompakt",()->"Kompakte Ansicht",()->false,0,()->client.setScreen(new SakuraScreen()));
   button(872,21,24,24,Skin.BUTTON,()->"×",()->"Schließen",()->false,0,this::close);
   button(28,470,140,28,Skin.KEY,()->keyName(SakuraClient.menuKey),()->conflict(SakuraClient.menuKey),()->false,0,()->capture=SakuraClient.menuKey);
   button(28,510,140,28,Skin.BUTTON,()->"Alle Hotkeys",()->"Minecraft-Tastenbelegung",()->false,0,
@@ -296,6 +296,7 @@ public final class SakuraAdvancedScreen extends Screen {
    float h=p.tween[0],on=p.tween[1];String text=p.text.get(),detail=p.detail.get();
    w.setMessage(Text.literal(text+". "+detail));if(over)hover=detail;
    if(p.skin==Skin.NAV){
+    if(on>.01f)round(c,x-1,y-1,bw+2,bh+2,8,0xFF7B2850);
     round(c,x,y,bw,bh,7,mix(mix(0xFF16131B,0xFF211C27,h),0xFF30202D,on));
     small(c,text,x+13,y+7,mix(MUTED,INK,on),bw-32);
     if(p.index<6){round(c,x+bw-17,y+16,4,4,2,SakuraClient.enabled(p.index)?PINK:0xFF65596B);}
@@ -303,6 +304,7 @@ public final class SakuraAdvancedScreen extends Screen {
     round(c,x,y,bw,bh,7,mix(0xFF151219,0xFF30202D,on));
     label(c,text,x+(bw-tw(text))/2,y+7,on>.5?PINK:MUTED);
    }else if(p.skin==Skin.HERO){
+    round(c,x-1,y-1,bw+2,bh+2,12,mix(0xFF342030,0xFFB83270,on));
     round(c,x,y,bw,bh,11,mix(0xFF201B25,0xFF29202B,on));
     round(c,x+1,y+12,2,bh-24,1,mix(0xFF645A6A,PINK,on));
     label(c,text,x+16,y+11,INK);small(c,detail,x+16,y+33,MUTED,bw-97);
@@ -318,6 +320,7 @@ public final class SakuraAdvancedScreen extends Screen {
      if(!stack.isEmpty()){c.getMatrices().pushMatrix();c.getMatrices().translate(x+16,y+16);c.getMatrices().scale(.8f,.8f);c.drawItem(stack,0,0);c.getMatrices().popMatrix();}
     }
    }else{
+    round(c,x-1,y-1,bw+2,bh+2,8,mix(0xFF402336,0xFF8D3762,h));
     round(c,x,y,bw,bh,7,mix(0xFF2A2231,0xFF46304B,h));
     String shown=bw<40?text:fit(text,bw-18);
     label(c,shown,x+(bw-tw(shown))/2,y+(bh-11)/2,p.skin==Skin.KEY?PINK:INK);
