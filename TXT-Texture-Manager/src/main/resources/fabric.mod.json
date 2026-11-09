@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "txt_texture_manager",
+  "version": "${version}",
+  "name": "TXT Texture Manager",
+  "description": "Combine individual textures from existing resource packs.",
+  "environment": "client",
+  "entrypoints": {"client": ["de.txtmanager.TxtTextureManager"]},
+  "depends": {"fabricloader": ">=0.18.1", "minecraft": "1.21.11", "java": ">=21", "fabric-api": "*"}
+}
